@@ -1,0 +1,34 @@
+## This file tracks all the step necessary to configure a fresh VM with everything needed to run Rshiny server
+
+## expand with R repo
+sudo vi /etc/apt/sources.list
+#add this line
+deb https://muug.ca/mirror/cran/bin/linux/ubuntu xenial/
+
+## First install fundamental packages
+sudo apt-get update
+sudo apt-get install r-base-dev #this is updated becase of above modification
+sudo apt-get install libcurl4-openssl-dev
+sudo apt-get install default-jdk
+sudo apt-get install libssl-dev
+
+## Install R-packages
+sudo -i
+R
+install.packages("shiny")
+install.packages("rmarkdown")
+install.packages("openxlsx")
+install.packages("nlme")
+install.packages("R.utils")
+install.packages("mailR")
+install.packages("XML")
+install.packages("jsonlite")
+install.packages("plotly")
+install.packages("devtools")
+install.packages("ggplot2")
+install.packages("dplyr")
+install.packages("tidyr")
+install.packages("stringr")
+q()
+y
+exit #don't stay as root
