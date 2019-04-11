@@ -11,6 +11,7 @@ sudo apt-get install r-base-dev #this is updated becase of above modification
 sudo apt-get install libcurl4-openssl-dev
 sudo apt-get install default-jdk
 sudo apt-get install libssl-dev
+sudo apt-get install libxml2-dev
 
 ## Install R-packages
 sudo -i
@@ -29,6 +30,9 @@ install.packages("ggplot2")
 install.packages("dplyr")
 install.packages("tidyr")
 install.packages("stringr")
+install.packages("shinycssloaders")
+install.packages("DT")
+install.packages("tidyverse")
 q()
 y
 exit #don't stay as root
