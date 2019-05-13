@@ -15,7 +15,7 @@ shinyUI(fluidPage(
   # Sidebar with a slider input for number of bins 
   sidebarLayout(
     sidebarPanel(
-      textInput("user_gene_clustering", label = "Enter Genesymbol", value = "Gapdh"),
+      textInput("user_gene_clustering", label = "Enter Genesymbol", value = "GAPDH"),
       
       ## Dropdown menu for color panel
       selectInput(
@@ -41,11 +41,14 @@ shinyUI(fluidPage(
                  plotOutput("tsne_plot_cluster"),
                  plotOutput("tsne_plot_gene_expression")
         
-      )
+      ),
       
-    )
+      tabPanel("Marker",
+               dataTableOutput("table_marker_genes")
+      )
+    
   )
   
   )
 )
-)
+))
