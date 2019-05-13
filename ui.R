@@ -9,7 +9,7 @@ library(shiny)
 shinyUI(fluidPage(
   
   # Application title
-  titlePanel("Explore gene expression in the mouse heart"),
+  titlePanel("Visualize your scRNA-seq clustering results"),
   br(),
   
   # Sidebar with a slider input for number of bins 
@@ -26,14 +26,20 @@ shinyUI(fluidPage(
       ## Scale menu for point size 
       sliderInput(
         inputId="point_size", label="Change cell point size!", 
-        min =1, max = 6, value = 3, step = 1, round = TRUE) 
+        min =1, max = 6, value = 3, step = 1, round = TRUE) ,
+      
+      h4("Do you want to show cell type labels?"),
+      checkboxInput("show_labels",
+                    label = "Show labels",
+                    value = TRUE)
     ),
     
     # Show a plot of the generated distribution
     mainPanel(
       tabsetPanel(
-        tabPanel("Plot",
-                 textOutput("default")
+        tabPanel("tSNE Clustering",
+                 plotOutput("tsne_plot_cluster"),
+                 plotOutput("tsne_plot_gene_expression")
         
       )
       
