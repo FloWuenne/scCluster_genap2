@@ -5,9 +5,11 @@ library(ggrepel)
 library(viridis)
 library(cowplot)
 library(feather)
+library(data.table)
 
 ## Read in data
 #clust_data <- readRDS("./data/Clustering.shiny_ready.Genap2.Rds")
+
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
@@ -17,7 +19,7 @@ shinyServer(function(input, output) {
     req(input$user_gene_clustering)
     
     ## Read in data at beginning of server
-    dimred <- feather::read_feather("./data/clustering_df.feather",
+    dimred <- feather::read_feather("../../test_data/clustering_df.feather",
                                     columns = c("tSNE_1","tSNE_2","classification",input$user_gene_clustering))
     
     return(dimred)
@@ -99,6 +101,24 @@ shinyServer(function(input, output) {
             legend.position = "right")
   })
   
+  marker_table <- reactive({
+    
+    marker <- fread("../../test_data/marker_genes.txt")
+    marker <- marker %>%
+      select(-V1)
+    
+    marker
+  })
+  
+  
+  ## Table with marker genes to select for GeneonTSNEplot
+  output$table_marker_genes <- renderDataTable(
+    marker <- marker_table(),
+    server=TRUE,
+    caption = 'Table 1: Marker genes for all cell types',
+    filter = 'top',
+    selection = 'single'
+  )
   
   
 })
