@@ -2,11 +2,12 @@
 library(DT)
 library(shinycssloaders)
 library(shiny)
-
+library(shinythemes)
 
 
 # Define UI for application that draws a histogram
-shinyUI(fluidPage(
+shinyUI(
+  fluidPage(theme = shinytheme("flatly"),
   
   # Application title
   titlePanel("Visualize your scRNA-seq clustering results"),
@@ -15,7 +16,12 @@ shinyUI(fluidPage(
   # Sidebar with a slider input for number of bins 
   sidebarLayout(
     sidebarPanel(
-      textInput("user_gene_clustering", label = "Enter Genesymbol", value = "GAPDH"),
+      textInput("user_gene_clustering", label = "Enter Genesymbol", "Gapdh"),
+      
+      actionButton("plot_gene_button", "Plot gene!"),
+      
+      br(),
+      br(),
       
       ## Dropdown menu for color panel
       selectInput(
