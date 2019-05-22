@@ -3,14 +3,16 @@ library(DT)
 library(shinycssloaders)
 library(shiny)
 library(shinythemes)
+library(shinyWidgets)
 
 
 # Define UI for application that draws a histogram
 shinyUI(
-  fluidPage(theme = shinytheme("flatly"),
+  fluidPage(theme = shinytheme("cosmo"),
   
   # Application title
-  titlePanel("Visualize your scRNA-seq clustering results"),
+  titlePanel("Visualize and analyse your scRNA-seq clustering results",
+             windowTitle = "scRNA-seq clustering"),
   br(),
   
   # Sidebar with a slider input for number of bins 
@@ -44,7 +46,7 @@ shinyUI(
     mainPanel(
       tabsetPanel(
         tabPanel("tSNE Clustering",
-                 plotOutput("tsne_plot_cluster"),
+                 withSpinner(plotOutput("tsne_plot_cluster")),
                  plotOutput("tsne_plot_gene_expression")
         
       ),
