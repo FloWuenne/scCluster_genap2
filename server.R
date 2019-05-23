@@ -25,20 +25,25 @@ cluster_centers <- feather::read_feather(paste(data_dir,"cluster_info_shiny.feat
 cluster_centers <- as.data.frame(cluster_centers)
 
 ## Marker Table
-marker_list <- fread("../../test_data/marker_genes.txt")
-
+marker_list <- fread(paste(data_dir,"marker_table.tsv",sep="/"))
+  
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
   
   ## UMAP clustering with cell types
   output$tsne_plot_cluster <- renderPlot({
     
-    tsne_plot <- ggplot(dimred,aes(tSNE_1,tSNE_2)) +
-      geom_point(aes(fill = cell_classification),
-                 size = input$point_size,
+    tsne_plot <- ggplot(dimred,aes(tSNE_1,tSNE_2,fill = cell_classification)) +
+      geom_point(size = input$point_size,
                  shape = 21,
                  alpha = 0.75,
                  colour = "black") 
+    
+    if(length(unique(dimred$cell_classification)) <= 8){
+      tsne_plot <- tsne_plot + scale_fill_brewer(palette = "Set2") 
+    }else if(length(unique(dimred$cell_classification)) <= 12){
+      tsne_plot <- tsne_plot + scale_fill_brewer(palette = "Set2") 
+    }
     
     if(input$show_labels == TRUE){
       tsne_plot <- tsne_plot +
@@ -82,7 +87,7 @@ shinyServer(function(input, output) {
       
       req(dimred_exp())
     
-      ggplot(dimred_exp(),aes(tSNE_1,tSNE_2)) +
+      mapping_expression <- ggplot(dimred_exp(),aes(tSNE_1,tSNE_2)) +
         geom_point(data = subset(dimred_exp(), get(user_gene()) == 0 | get(user_gene()) < 0),
                    size = input$point_size,
                    colour = "grey",
@@ -105,18 +110,65 @@ shinyServer(function(input, output) {
               strip.background=element_blank(),
               strip.text = element_blank(),
               legend.position = "right") 
+      
+      return(mapping_expression)
+    
       })
     
-  
-  
+    
+    output$vlnplot_user_gene <- renderPlot({
+      
+      req(dimred_exp())
+      
+      vln_plot <- ggplot(dimred_exp(),aes(cell_classification,get(user_gene()),fill=cell_classification)) +
+        geom_violin() +
+
+        labs(x="Cell cluster",
+             y = "Normalized Expression",
+             title = user_gene()) + 
+        theme(legend.position = "none")
+      
+      if(length(unique(dimred_exp()$cell_classification)) <= 8){
+        vln_plot <- vln_plot + scale_fill_brewer(palette = "Set2") 
+      }else if(length(unique(dimred_exp()$cell_classification)) <= 12){
+        vln_plot <- vln_plot + scale_fill_brewer(palette = "Set2") 
+      }
+      
+      return(vln_plot)
+    })
+    
   ## Table with marker genes to select for GeneonTSNEplot
   output$table_marker_genes <- renderDataTable(
-    marker <- marker_list,
-    server=TRUE,
-    caption = 'Table 1: Marker genes for all cell types',
+    datatable(marker <- marker_list,
+    caption = 'Table 1: Marker genes for all cell classifications',
     filter = 'top',
-    selection = 'single'
+    selection = 'single') %>%
+    formatRound(c(2), 4) %>% 
+    formatStyle(columns = c(3:9), 'text-align' = 'center')
   )
+  
+  output$original_cell_labels <- renderUI({
+    cell_classes <- unique(dimred$cell_classification)
+    selectInput(inputId = "original_label",
+                choices = cell_classes,
+                label="Select cell cluster to relabel!" )
+  })
+  
+  output$new_cell_labels <- renderUI({
+    textInput(inputId = "new_label",
+              label = "Enter new cell label:",
+              value =input$original_label)
+  })
+  
+  
+  user_cell_label <- eventReactive(input$save_new_label ,{
+    ## Check that the gene exists in the data
+    return(input$new_label)
+  })
+  
+  output$test_rename <-renderText({
+    user_cell_label()
+  })
   
   
 })

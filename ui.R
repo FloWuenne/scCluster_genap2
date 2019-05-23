@@ -39,7 +39,26 @@ shinyUI(
       h4("Do you want to show cell type labels?"),
       checkboxInput("show_labels",
                     label = "Show labels",
-                    value = TRUE)
+                    value = TRUE),
+      
+      h4("Do you want to regroup or relabel cells?"),
+      checkboxInput("relabel_cells",
+                    label = "Relabel cells?",
+                    value = FALSE),
+      
+      conditionalPanel(
+        condition = "input.relabel_cells == true",
+        uiOutput("original_cell_labels")
+      ),
+      
+      conditionalPanel(
+        condition = "input.relabel_cells == true",
+        uiOutput("new_cell_labels"),
+        actionButton("save_new_label", "Save new label!")
+      ),
+      
+      textOutput("test_rename")
+
     ),
     
     # Show a plot of the generated distribution
@@ -47,11 +66,11 @@ shinyUI(
       tabsetPanel(
         tabPanel("tSNE Clustering",
                  withSpinner(plotOutput("tsne_plot_cluster")),
-                 plotOutput("tsne_plot_gene_expression")
-        
+                 plotOutput("tsne_plot_gene_expression"),
+                 plotOutput("vlnplot_user_gene")
       ),
       
-      tabPanel("Marker",
+      tabPanel("Marker_genes",
                dataTableOutput("table_marker_genes")
       )
     
