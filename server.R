@@ -8,8 +8,15 @@ library(feather)
 library(data.table)
 
 ## Read in data
-## Testing locally
-data_dir <- "/Users/florian_wuennemann/Postdoc/Genap/data/"
+
+## Set data dir depending on machine
+home_dir <- Sys.getenv("HOME")
+if(home_dir == "/Users/florian_wuennemann"){
+  data_dir <- "/Users/florian_wuennemann/Postdoc/Genap/data/"
+}else if(home_dir == "/home/florian"){
+  data_dir <- "/home/florian/test_data"
+}
+
 ## Production Genap2 environment
 #data_dir <- ""
 
