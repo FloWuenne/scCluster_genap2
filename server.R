@@ -13,6 +13,7 @@ library(RColorBrewer)
 
 ## Set data dir depending on machine
 home_dir <- Sys.getenv("HOME")
+print(home_dir)
 if(home_dir == "/Users/florian_wuennemann"){
   data_dir <- "/Users/florian_wuennemann/Postdoc/Genap/data/"
 }else if(home_dir == "/home/florian"){
@@ -20,7 +21,6 @@ if(home_dir == "/Users/florian_wuennemann"){
 }
 
 ## Production Genap2 environment
-#data_dir <- ""
 
 ## Read in clustering data
 dimred <- feather::read_feather(paste(data_dir,"clustering_shiny.feather",sep="/"),
