@@ -13,7 +13,7 @@ library(RColorBrewer)
 
 ## Set data dir depending on machine
 home_dir <- Sys.getenv("HOME")
-print(home_dir)
+message(home_dir)
 if(home_dir == "/Users/florian_wuennemann"){
   data_dir <- "/Users/florian_wuennemann/Postdoc/Genap/data/"
 }else if(home_dir == "/home/florian"){
