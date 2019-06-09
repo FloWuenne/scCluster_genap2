@@ -16,7 +16,7 @@ home_dir <- Sys.getenv("HOME")
 message(home_dir)
 if(home_dir == "/Users/florian_wuennemann"){
   data_dir <- "/Users/florian_wuennemann/Postdoc/Genap/data/"
-}else if(home_dir == "/home/florian"){
+}else if(home_dir == "/home/shiny"){
   data_dir <- "/home/florian/test_data"
 }
 
