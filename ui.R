@@ -4,6 +4,7 @@ library(shinycssloaders)
 library(shiny)
 library(shinythemes)
 library(shinyWidgets)
+library(plotly)
 
 
 # Define UI for application that draws a histogram
@@ -34,7 +35,7 @@ shinyUI(
       ## Scale menu for point size 
       sliderInput(
         inputId="point_size", label="Change cell point size!", 
-        min =1, max = 6, value = 3, step = 1, round = TRUE) ,
+        min = 2, max = 10, value = 6, step = 2, round = TRUE) ,
       
       h4("Do you want to show cell type labels?"),
       checkboxInput("show_labels",
@@ -65,9 +66,19 @@ shinyUI(
     mainPanel(
       tabsetPanel(
         tabPanel("tSNE Clustering",
-                 withSpinner(plotOutput("tsne_plot_cluster")),
-                 plotOutput("tsne_plot_gene_expression"),
-                 plotOutput("vlnplot_user_gene")
+
+                 plotlyOutput("tsne_plot_cluster_plotly"),
+                 br(),
+                 plotlyOutput("tsne_plot_gene_expression_plotly"),
+                 br(),
+                 plotlyOutput("vlnplot_user_gene_plotly")
+                 
+                 ## old plots based on ggplot
+                 #withSpinner(plotOutput("tsne_plot_cluster")),
+                 #plotOutput("tsne_plot_gene_expression"),
+                 #plotOutput("vlnplot_user_gene")
+
+                 
       ),
       
       tabPanel("Marker_genes",

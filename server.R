@@ -6,6 +6,8 @@ library(viridis)
 library(cowplot)
 library(feather)
 library(data.table)
+library(plotly)
+library(RColorBrewer)
 
 ## Read in data
 
@@ -22,7 +24,7 @@ if(home_dir == "/Users/florian_wuennemann"){
 
 ## Read in clustering data
 dimred <- feather::read_feather(paste(data_dir,"clustering_shiny.feather",sep="/"),
-                                columns = c("tSNE_1","tSNE_2","cell_classification"))
+                                columns = c("tSNE_1","tSNE_2","cell_classification","nGene","nUMI"))
 
 ## Get gene names
 gene_names <- fread(paste(data_dir,"gene_names.tsv",sep="/"))
@@ -36,6 +38,133 @@ marker_list <- fread(paste(data_dir,"marker_table.tsv",sep="/"))
   
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
+
+  ## Determine color palette based number of clusters
+  discrete_color_palette <- reactive({
+    
+    n_clusters <- length(unique(dimred$cell_classification))
+    
+    if(n_clusters <= 9){
+    colors <- brewer.pal(name = "Set1",n = n_clusters)
+    }else{
+    colors <- c(brewer.pal(name = "Set1",n = 9),brewer.pal(name = "Set2",n = 8))
+    }
+    
+    return(colors)
+  })
+  
+  ## Variation of cluster plot using plotly
+  output$tsne_plot_cluster_plotly <- renderPlotly({
+
+    tsne_plot <- plot_ly(dimred,
+                         x = ~tSNE_1,
+                         y = ~tSNE_2,
+                         alpha  = 1,
+                         type = "scatter",
+                         mode = "markers",
+                         text = ~paste('nGene: ', nGene, '\n',
+                                       'nUMI: ', nUMI),
+                         marker = list(size = input$point_size),
+                         color = ~cell_classification,
+                         colors = discrete_color_palette())  %>%
+      toWebGL()
+    
+    return(tsne_plot)
+    
+  })
+  
+  ## Variation of the gene expression plot using plotly
+  output$tsne_plot_gene_expression_plotly <- renderPlotly({
+    
+    req(dimred_exp())
+
+    tsne_plot <- plot_ly(subset(dimred_exp(),get(user_gene()) > 0),
+                         x = ~tSNE_1,
+                         y = ~tSNE_2,
+                         alpha  = 1,
+                         type = "scatter",
+                         mode = "markers",
+                         marker = list(size = input$point_size),
+                         color = ~get(user_gene()),
+                         name = 'Gene expressed',
+                         hoverinfo = 'none',
+                         colors = viridis_pal(option = input$color_palette)(6)) %>%
+      add_trace(p,
+                data = subset(dimred_exp(),get(user_gene()) == 0),
+                x = ~tSNE_1,
+                y = ~tSNE_2,
+                type = 'scatter', 
+                mode = 'marker', 
+                marker = list(size = input$point_size,
+                              color = "grey"),
+                hoverinfo = 'none',
+                name = 'Not expressed') %>%
+      layout(title=user_gene()) %>%
+      toWebGL() %>% colorbar(title = "Normalized expression")
+    
+    
+    return(tsne_plot)
+    
+  })
+  
+  ## Violin plot based on plotly
+  output$vlnplot_user_gene_plotly <- renderPlotly({
+    
+    req(dimred_exp())
+    req(user_gene())
+    
+    vln_plot <- plot_ly(dimred_exp(),
+            x = ~cell_classification,
+            y = ~get(user_gene()),
+            color = ~cell_classification,
+            type = 'violin',
+            box = list(
+              visible = T),
+            meanline = list(
+              visible = T),
+            colors = discrete_color_palette()
+    )
+    
+    return(vln_plot)
+  })
+  
+  ## Table with marker genes to select for GeneonTSNEplot
+  output$table_marker_genes <- renderDataTable(
+    datatable(marker <- marker_list,
+              caption = 'Table 1: Marker genes for all cell classifications',
+              filter = 'top',
+              selection = 'single') %>%
+      formatRound(c(2), 4) %>% 
+      formatStyle(columns = c(3:9), 'text-align' = 'center')
+  )
+  
+  output$original_cell_labels <- renderUI({
+    cell_classes <- unique(dimred$cell_classification)
+    selectInput(inputId = "original_label",
+                choices = cell_classes,
+                label="Select cell cluster to relabel!" )
+  })
+  
+  output$new_cell_labels <- renderUI({
+    textInput(inputId = "new_label",
+              label = "Enter new cell label:",
+              value =input$original_label)
+  })
+  
+  
+  user_cell_label <- eventReactive(input$save_new_label ,{
+    ## Check that the gene exists in the data
+    return(input$new_label)
+  })
+  
+  output$test_rename <-renderText({
+    user_cell_label()
+  })
+  
+  
+  
+  
+  ################### old code
   
   ## UMAP clustering with cell types
   output$tsne_plot_cluster <- renderPlot({
@@ -144,38 +273,4 @@ shinyServer(function(input, output) {
       return(vln_plot)
     })
     
-  ## Table with marker genes to select for GeneonTSNEplot
-  output$table_marker_genes <- renderDataTable(
-    datatable(marker <- marker_list,
-    caption = 'Table 1: Marker genes for all cell classifications',
-    filter = 'top',
-    selection = 'single') %>%
-    formatRound(c(2), 4) %>% 
-    formatStyle(columns = c(3:9), 'text-align' = 'center')
-  )
-  
-  output$original_cell_labels <- renderUI({
-    cell_classes <- unique(dimred$cell_classification)
-    selectInput(inputId = "original_label",
-                choices = cell_classes,
-                label="Select cell cluster to relabel!" )
-  })
-  
-  output$new_cell_labels <- renderUI({
-    textInput(inputId = "new_label",
-              label = "Enter new cell label:",
-              value =input$original_label)
-  })
-  
-  
-  user_cell_label <- eventReactive(input$save_new_label ,{
-    ## Check that the gene exists in the data
-    return(input$new_label)
-  })
-  
-  output$test_rename <-renderText({
-    user_cell_label()
-  })
-  
-  
 })
