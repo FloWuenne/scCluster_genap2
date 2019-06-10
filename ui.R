@@ -35,30 +35,30 @@ shinyUI(
       ## Scale menu for point size 
       sliderInput(
         inputId="point_size", label="Change cell point size!", 
-        min = 2, max = 10, value = 6, step = 2, round = TRUE) ,
+        min = 2, max = 10, value = 6, step = 2, round = TRUE) 
       
-      h4("Do you want to show cell type labels?"),
-      checkboxInput("show_labels",
-                    label = "Show labels",
-                    value = TRUE),
+      # h4("Do you want to show cell type labels?"),
+      # checkboxInput("show_labels",
+      #               label = "Show labels",
+      #               value = TRUE),
       
-      h4("Do you want to regroup or relabel cells?"),
-      checkboxInput("relabel_cells",
-                    label = "Relabel cells?",
-                    value = FALSE),
+      # h4("Do you want to regroup or relabel cells?"),
+      # checkboxInput("relabel_cells",
+      #               label = "Relabel cells?",
+      #               value = FALSE),
       
-      conditionalPanel(
-        condition = "input.relabel_cells == true",
-        uiOutput("original_cell_labels")
-      ),
+      # conditionalPanel(
+      #   condition = "input.relabel_cells == true",
+      #   uiOutput("original_cell_labels")
+      # ),
       
-      conditionalPanel(
-        condition = "input.relabel_cells == true",
-        uiOutput("new_cell_labels"),
-        actionButton("save_new_label", "Save new label!")
-      ),
+      # conditionalPanel(
+      #   condition = "input.relabel_cells == true",
+      #   uiOutput("new_cell_labels"),
+      #   actionButton("save_new_label", "Save new label!")
+      # ),
       
-      textOutput("test_rename")
+      # textOutput("test_rename")
 
     ),
     

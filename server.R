@@ -134,7 +134,7 @@ shinyServer(function(input, output) {
               caption = 'Table 1: Marker genes for all cell classifications',
               filter = 'top',
               selection = 'single') %>%
-      formatRound(c(2), 4) %>% 
+      formatRound(digits = c(2), columns = c(2)) %>% 
       formatStyle(columns = c(3:9), 'text-align' = 'center')
   )
   
