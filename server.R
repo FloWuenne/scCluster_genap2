@@ -24,18 +24,11 @@ if(home_dir == "/Users/florian_wuennemann"){ # Personal machine
 ## Production Genap2 environment
 
 ## Read in clustering data
-# dimred <- feather::read_feather(paste(data_dir,"clustering_shiny.feather",sep="/"),
-#                                 columns = c("tSNE_1","tSNE_2","cell_classification","nGene","nUMI"))
-
-# full data loading
-dimred <- feather::read_feather(paste(data_dir,"clustering_shiny.feather",sep="/"))
+dimred <- feather::read_feather(paste(data_dir,"clustering_shiny.feather",sep="/"),
+                                columns = c("tSNE_1","tSNE_2","cell_classification","nGene","nUMI"))
 
 ## Get gene names
 gene_names <- fread(paste(data_dir,"gene_names.tsv",sep="/"))
-
-## Calculate centers of cluster labels
-cluster_centers <- feather::read_feather(paste(data_dir,"cluster_info_shiny.feather",sep="/"))
-cluster_centers <- as.data.frame(cluster_centers)
 
 ## Marker Table
 marker_list <- fread(paste(data_dir,"marker_table.tsv",sep="/"))
@@ -82,7 +75,7 @@ shinyServer(function(input, output) {
     
     req(dimred_exp())
 
-    dimred_plot <- plot_ly(subset(dimred_exp(),get(user_gene()) > 0),
+    dimred_gene_plot <- plot_ly(subset(dimred_exp(),get(user_gene()) > 0),
                          x = ~tSNE_1,
                          y = ~tSNE_2,
                          alpha  = 1,
@@ -107,7 +100,7 @@ shinyServer(function(input, output) {
       colorbar(title = "Normalized expression")
     
     
-    return(dimred_plot)
+    return(dimred_gene_plot)
     
   })
   
@@ -187,9 +180,9 @@ shinyServer(function(input, output) {
     
     if(input$show_labels == TRUE){
       tsne_plot <- tsne_plot +
-        geom_label_repel(data= cluster_centers, x = cluster_centers[, 2], y = cluster_centers[, 3], label = cluster_centers[,1],
-                         fontface = 'bold', color = 'white', point.padding= FALSE,
-                         fill = "darkgrey", size = 6, alpha = 0.8) +
+        # geom_label_repel(data= cluster_centers, x = cluster_centers[, 2], y = cluster_centers[, 3], label = cluster_centers[,1],
+        #                  fontface = 'bold', color = 'white', point.padding= FALSE,
+        #                  fill = "darkgrey", size = 6, alpha = 0.8) +
         theme(legend.position = "none")
       
     }else{
@@ -214,14 +207,10 @@ shinyServer(function(input, output) {
                message = "Please enter a valid gene name")
       )
         
-        # gene_exp <- feather::read_feather(paste(data_dir,"clustering_shiny.feather",sep="/"),
-        #                                   columns = c(user_gene()))
-        # 
-        # dimred_exp_df  <- cbind(dimred,gene_exp)
-      
-      dimred_exp_df <- dimred %>%
-        select("tSNE_1","tSNE_2","cell_classification",user_gene())
-      
+        gene_exp <- feather::read_feather(paste(data_dir,"clustering_shiny.feather",sep="/"),
+                                          columns = c(user_gene()))
+        
+        dimred_exp_df  <- cbind(dimred,gene_exp)
         return(dimred_exp_df)
     }) 
   
