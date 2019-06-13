@@ -24,8 +24,11 @@ if(home_dir == "/Users/florian_wuennemann"){ # Personal machine
 ## Production Genap2 environment
 
 ## Read in clustering data
-dimred <- feather::read_feather(paste(data_dir,"clustering_shiny.feather",sep="/"),
-                                columns = c("tSNE_1","tSNE_2","cell_classification","nGene","nUMI"))
+# dimred <- feather::read_feather(paste(data_dir,"clustering_shiny.feather",sep="/"),
+#                                 columns = c("tSNE_1","tSNE_2","cell_classification","nGene","nUMI"))
+
+# full data loading
+dimred <- feather::read_feather(paste(data_dir,"clustering_shiny.feather",sep="/"))
 
 ## Get gene names
 gene_names <- fread(paste(data_dir,"gene_names.tsv",sep="/"))
@@ -211,10 +214,14 @@ shinyServer(function(input, output) {
                message = "Please enter a valid gene name")
       )
         
-        gene_exp <- feather::read_feather(paste(data_dir,"clustering_shiny.feather",sep="/"),
-                                          columns = c(user_gene()))
-        
-        dimred_exp_df  <- cbind(dimred,gene_exp)
+        # gene_exp <- feather::read_feather(paste(data_dir,"clustering_shiny.feather",sep="/"),
+        #                                   columns = c(user_gene()))
+        # 
+        # dimred_exp_df  <- cbind(dimred,gene_exp)
+      
+      dimred_exp_df <- dimred %>%
+        select("tSNE_1","tSNE_2","cell_classification",user_gene())
+      
         return(dimred_exp_df)
     }) 
   
