@@ -13,10 +13,11 @@ library(RColorBrewer)
 
 ## Set data dir depending on machine
 home_dir <- Sys.getenv("HOME")
-message(home_dir)
-if(home_dir == "/Users/florian_wuennemann"){
+if(home_dir == "/Users/florian_wuennemann"){ # Personal machine
   data_dir <- "/Users/florian_wuennemann/Postdoc/Genap/data/"
-}else if(home_dir == "/home/shiny"){
+}else if(home_dir == "/home/florian"){ # work machine
+  data_dir <- "../scCluster_genap2_data"
+}else if(home_dir == "/home/shiny"){ #shiny server 
   data_dir <- "/home/florian/test_data"
 }
 
@@ -53,57 +54,57 @@ shinyServer(function(input, output) {
     return(colors)
   })
   
-  ## Variation of cluster plot using plotly
-  output$tsne_plot_cluster_plotly <- renderPlotly({
+  ## PLot dimensional reduction plot using plotly
+  output$dimred_plot_plotly <- renderPlotly({
 
-    tsne_plot <- plot_ly(dimred,
+    dimred_plot <- plot_ly(dimred,
                          x = ~tSNE_1,
                          y = ~tSNE_2,
-                         alpha  = 1,
-                         type = "scatter",
+                         alpha  = 0.75,
+                         type = "scattergl",
                          mode = "markers",
-                         text = ~paste('nGene: ', nGene, '\n',
-                                       'nUMI: ', nUMI),
+                         hoverinfo = 'none',
+                         # text = ~paste('nGene: ', nGene, '\n',
+                         #               'nUMI: ', nUMI),
                          marker = list(size = input$point_size),
                          color = ~cell_classification,
-                         colors = discrete_color_palette())  %>%
-      toWebGL()
+                         colors = discrete_color_palette()) 
     
-    return(tsne_plot)
+    return(dimred_plot)
     
   })
   
   ## Variation of the gene expression plot using plotly
-  output$tsne_plot_gene_expression_plotly <- renderPlotly({
+  output$dimred_gene_plot_plotly <- renderPlotly({
     
     req(dimred_exp())
 
-    tsne_plot <- plot_ly(subset(dimred_exp(),get(user_gene()) > 0),
+    dimred_plot <- plot_ly(subset(dimred_exp(),get(user_gene()) > 0),
                          x = ~tSNE_1,
                          y = ~tSNE_2,
                          alpha  = 1,
-                         type = "scatter",
+                         type = "scattergl",
                          mode = "markers",
                          marker = list(size = input$point_size),
                          color = ~get(user_gene()),
                          name = 'Gene expressed',
                          hoverinfo = 'none',
-                         colors = viridis_pal(option = input$color_palette)(6)) %>%
+                         colors = viridis_pal(option = input$dimred_color_palette)(6)) %>%
       add_trace(p,
                 data = subset(dimred_exp(),get(user_gene()) == 0),
                 x = ~tSNE_1,
                 y = ~tSNE_2,
                 type = 'scatter', 
-                mode = 'marker', 
+                mode = 'markers', 
                 marker = list(size = input$point_size,
                               color = "grey"),
                 hoverinfo = 'none',
                 name = 'Not expressed') %>%
       layout(title=user_gene()) %>%
-      toWebGL() %>% colorbar(title = "Normalized expression")
+      colorbar(title = "Normalized expression")
     
     
-    return(tsne_plot)
+    return(dimred_plot)
     
   })
   
@@ -135,7 +136,7 @@ shinyServer(function(input, output) {
               filter = 'top',
               selection = 'single') %>%
       formatRound(digits = c(2), columns = c(2)) %>% 
-      formatStyle(columns = c(3:9), 'text-align' = 'center')
+      formatStyle(columns = c(3:9), 'text-align' = 'centers')
   )
   
   output$original_cell_labels <- renderUI({
@@ -232,7 +233,7 @@ shinyServer(function(input, output) {
                    aes(colour = get(user_gene())),
                    size = input$point_size,
                    alpha = 0.5) +
-        scale_colour_viridis(option=input$color_palette,
+        scale_colour_viridis(option=input$dimred_color_palette,
                              name="Norm. Expr.") +
         labs(colour = "Norm. Expr.",
              x = "UMAP1",
