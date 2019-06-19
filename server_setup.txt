@@ -33,6 +33,7 @@ install.packages("stringr")
 install.packages("shinycssloaders")
 install.packages("DT")
 install.packages("tidyverse")
+install.packages("shinyFiles")
 q()
 y
 exit #don't stay as root

@@ -9,37 +9,112 @@ library(data.table)
 library(plotly)
 library(RColorBrewer)
 
-## Read in data
-
-## Set data dir depending on machine
-home_dir <- Sys.getenv("HOME")
-if(home_dir == "/Users/florian_wuennemann"){ # Personal machine
-  data_dir <- "/Users/florian_wuennemann/Postdoc/Genap/data/"
-}else if(home_dir == "/home/florian"){ # work machine
-  data_dir <- "../scCluster_genap2_data"
-}else if(home_dir == "/home/shiny"){ #shiny server 
-  data_dir <- "/home/florian/test_data"
-}
-
-## Production Genap2 environment
-
-## Read in clustering data
-dimred <- feather::read_feather(paste(data_dir,"clustering_shiny.feather",sep="/"),
-                                columns = c("tSNE_1","tSNE_2","cell_classification","nGene","nUMI"))
-
-## Get gene names
-gene_names <- fread(paste(data_dir,"gene_names.tsv",sep="/"))
-
-## Marker Table
-marker_list <- fread(paste(data_dir,"marker_table.tsv",sep="/"))
-  
 # Define server logic required to draw a histogram
-shinyServer(function(input, output) {
+shinyServer(function(input, output, session) {
+  
+  volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
+  
+  ## Feather clustering file
+  shinyFileChoose(input, "feather_file", 
+                  roots = volumes,
+                  defaultRoot = 'Home', 
+                  defaultPath = 'Postdoc/Genap/data',
+                  session = session)
+  
+  output$filepaths <- renderPrint({
+    parseFilePaths(volumes, input$feather_file)
+  })
+  
+  ## path to the uploaded feather file
+  dimred_path <- reactive({
+    req(input$feather_file)
+    dimred_path <- parseFilePaths(volumes, input$feather_file)$datapath
+    return(dimred_path)
+  })
+  
+  dimred <- reactive({
+    req(dimred_path())
+    ## Read in clustering data
+    dimred <- feather::read_feather(dimred_path(),
+                                    columns = c("tSNE_1","tSNE_2","cell_classification","nGene","nUMI"))
+    return(dimred)
+  })
+  
+  output$dimredoutput <- reactive({
+    return(dimred())
+  })
+  
+  outputOptions(output, 'dimredoutput', suspendWhenHidden = FALSE)
+  
+  ## gene names file
+  shinyFileChoose(input, "gene_names", 
+                  roots = volumes,
+                  defaultRoot = 'Home', 
+                  defaultPath = 'Postdoc/Genap/data',
+                  session = session)
+  
+  ## path to the uploaded feather file
+  gene_names_path <- reactive({
+    req(input$gene_names)
+    gene_names_path <- parseFilePaths(volumes, input$gene_names)$datapath
+    return(gene_names_path)
+  })
+  
+  gene_names_df <-  reactive({
+    req(gene_names_path())
+    gene_names_df <- fread(gene_names_path())
+    return(gene_names_df)
+  })
+  
+  ## Marker list
+  ## gene names file
+  shinyFileChoose(input, "marker_genes", 
+                  roots = volumes,
+                  defaultRoot = 'Home', 
+                  defaultPath = 'Postdoc/Genap/data',
+                  session = session)
+  
+  ## path to the uploaded feather file
+  marker_genes_path <- reactive({
+    req(input$marker_genes)
+    marker_genes_path <- parseFilePaths(volumes, input$marker_genes)$datapath
+    return(marker_genes_path)
+  })
+  
+  marker_genes_table <-  reactive({
+    req(marker_genes_path())
+    marker_genes_table <- fread(marker_genes_path())
+    return(marker_genes_table)
+  })
+  
+  user_gene <- eventReactive(input$plot_gene_button ,{
+    ## Check that the gene exists in the data
+    return(input$user_gene_clustering)
+  })
+  
+  ## Loads the expression of the requested gene and adds it to the cell embeddings
+  dimred_exp <- reactive({
+    
+    req(dimred())
+    
+    validate(
+      need(user_gene() %in% gene_names_df()$genes,
+           message = "Please enter a valid gene name")
+    )
+    
+    gene_exp <- feather::read_feather(dimred_path(),
+                                      columns = c(user_gene()))
+    
+    dimred_exp_df  <- cbind(dimred(),gene_exp)
+    return(dimred_exp_df)
+  }) 
 
   ## Determine color palette based number of clusters
   discrete_color_palette <- reactive({
     
-    n_clusters <- length(unique(dimred$cell_classification))
+    req(dimred())
+    
+    n_clusters <- length(unique(dimred()$cell_classification))
     
     if(n_clusters <= 9){
     colors <- brewer.pal(name = "Set1",n = n_clusters)
@@ -53,7 +128,9 @@ shinyServer(function(input, output) {
   ## PLot dimensional reduction plot using plotly
   output$dimred_plot_plotly <- renderPlotly({
 
-    dimred_plot <- plot_ly(dimred,
+    req(dimred())
+    
+    dimred_plot <- plot_ly(dimred(),
                          x = ~tSNE_1,
                          y = ~tSNE_2,
                          alpha  = 0.75,
@@ -67,7 +144,13 @@ shinyServer(function(input, output) {
                          colors = discrete_color_palette()) 
     
     return(dimred_plot)
-    
+  })
+  
+  ## only show tabPanel  for dimensional reduction once the plot has been created
+  hideTab(inputId = "main_page", target = "Dimensional reduction")
+  observeEvent(input$feather_file, {
+    showTab(inputId = "main_page", target = "Dimensional reduction",
+            select = TRUE)
   })
   
   ## Variation of the gene expression plot using plotly
@@ -127,13 +210,14 @@ shinyServer(function(input, output) {
   
   ## Table with marker genes to select for GeneonTSNEplot
   output$table_marker_genes <- renderDataTable(
-    datatable(marker <- marker_list,
+    {
+    datatable(marker <- marker_genes_table(),
               caption = 'Table 1: Marker genes for all cell classifications',
               filter = 'top',
               selection = 'single') %>%
       formatRound(digits = c(2), columns = c(2)) %>% 
       formatStyle(columns = c(3:9), 'text-align' = 'centers')
-  )
+  })
   
   output$original_cell_labels <- renderUI({
     cell_classes <- unique(dimred$cell_classification)
@@ -166,15 +250,17 @@ shinyServer(function(input, output) {
   ## UMAP clustering with cell types
   output$tsne_plot_cluster <- renderPlot({
     
-    tsne_plot <- ggplot(dimred,aes(tSNE_1,tSNE_2,fill = cell_classification)) +
+    req(dimred())
+    
+    tsne_plot <- ggplot(dimred(),aes(tSNE_1,tSNE_2,fill = cell_classification)) +
       geom_point(size = input$point_size,
                  shape = 21,
                  alpha = 0.75,
                  colour = "black") 
     
-    if(length(unique(dimred$cell_classification)) <= 8){
+    if(length(unique(dimred()$cell_classification)) <= 8){
       tsne_plot <- tsne_plot + scale_fill_brewer(palette = "Set2") 
-    }else if(length(unique(dimred$cell_classification)) <= 12){
+    }else if(length(unique(dimred()$cell_classification)) <= 12){
       tsne_plot <- tsne_plot + scale_fill_brewer(palette = "Set2") 
     }
     
@@ -193,28 +279,8 @@ shinyServer(function(input, output) {
     return(tsne_plot)
     
   })
-
-    user_gene <- eventReactive(input$plot_gene_button ,{
-      ## Check that the gene exists in the data
-      return(input$user_gene_clustering)
-    })
     
-    ## Loads the expression of the requested gene and adds it to the cell embeddings
-    dimred_exp <- reactive({
-      
-      validate(
-        need(user_gene() %in% gene_names$genes,
-               message = "Please enter a valid gene name")
-      )
-        
-        gene_exp <- feather::read_feather(paste(data_dir,"clustering_shiny.feather",sep="/"),
-                                          columns = c(user_gene()))
-        
-        dimred_exp_df  <- cbind(dimred,gene_exp)
-        return(dimred_exp_df)
-    }) 
   
-    
     ## Plot cell embeddings plot with gene expression
     output$tsne_plot_gene_expression <- renderPlot({
       
