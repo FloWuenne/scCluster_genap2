@@ -3,11 +3,11 @@ library(shiny)
 library(tidyverse)
 library(ggrepel)
 library(viridis)
-library(cowplot)
 library(feather)
 library(data.table)
 library(plotly)
 library(RColorBrewer)
+library(cowplot)
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output, session) {
@@ -37,6 +37,8 @@ shinyServer(function(input, output, session) {
     ## Read in clustering data
     dimred <- feather::read_feather(dimred_path(),
                                     columns = c("tSNE_1","tSNE_2","cell_classification","nGene","nUMI"))
+    dimred <- dimred %>%
+      mutate("cell_id" = paste("cl_",rownames(dimred)))
     return(dimred)
   })
   
@@ -125,7 +127,7 @@ shinyServer(function(input, output, session) {
     return(colors)
   })
   
-  ## PLot dimensional reduction plot using plotly
+  ## Plot dimensional reduction plot using plotly
   output$dimred_plot_plotly <- renderPlotly({
 
     req(dimred())
@@ -146,12 +148,6 @@ shinyServer(function(input, output, session) {
     return(dimred_plot)
   })
   
-  ## only show tabPanel  for dimensional reduction once the plot has been created
-  hideTab(inputId = "main_page", target = "Dimensional reduction")
-  observeEvent(input$feather_file, {
-    showTab(inputId = "main_page", target = "Dimensional reduction",
-            select = TRUE)
-  })
   
   ## Variation of the gene expression plot using plotly
   output$dimred_gene_plot_plotly <- renderPlotly({
@@ -176,7 +172,7 @@ shinyServer(function(input, output, session) {
                 type = 'scatter', 
                 mode = 'markers', 
                 marker = list(size = input$point_size,
-                              color = "grey"),
+                              color = 'grey'),
                 hoverinfo = 'none',
                 name = 'Not expressed') %>%
       layout(title=user_gene()) %>%
@@ -219,11 +215,163 @@ shinyServer(function(input, output, session) {
       formatStyle(columns = c(3:9), 'text-align' = 'centers')
   })
   
-  output$original_cell_labels <- renderUI({
-    cell_classes <- unique(dimred$cell_classification)
-    selectInput(inputId = "original_label",
-                choices = cell_classes,
-                label="Select cell cluster to relabel!" )
+  ## Renaming 
+  output$rename_list <- renderUI({
+    
+    ## If user wants to relabel assigned clusters
+    if(input$rename_method == "assigned_clusters"){
+      req(dimred())
+      cell_classes <- unique(dimred()$cell_classification)
+      selectInput(inputId = "rename_cluster_highlight",
+                  choices = cell_classes,
+                  label="Select cell cluster to relabel!",
+                  selected = cell_classes[1])
+    
+      ## if user wants to label cells based on gene expression
+    }else if(input$rename_method == "gene_expression"){
+      req(gene_names_df())
+      
+      textInput("genes_renaming", label = "Enter Genesymbol", "GAPDH")
+      
+      }else if(input$rename_method == "cell_selection"){
+        req(gene_names_df())
+        req(dimred_exp())
+        selectizeInput(inputId = "cells_selected", 
+                       label = "Which genes would you like to use to select cells? (single-gene or comma separated list!", 
+                       choices = gene_names_df()$genes[1:5], 
+                       selected = NULL, multiple = FALSE,
+                       options = NULL)
+      }
+    })
+  
+  output$rename_selected <- reactive({
+    return(input$rename_method)
+    })
+  outputOptions(output, "rename_selected", suspendWhenHidden = FALSE)
+
+  
+  ## ggplot to highlight which cluster will be renamed
+  output$dimred_plot_rename_assigned_clusters <- renderPlot({
+    
+    req(dimred())
+    req(input$rename_cluster_highlight)
+    
+    dimred_plot <- ggplot(dimred(),aes(tSNE_1,tSNE_2)) +
+      geom_point(data = subset(dimred(),cell_classification != input$rename_cluster_highlight),
+                 colour = "darkgrey",
+                 size = 3,
+                 alpha  = 0.75) +
+      geom_point(data = subset(dimred(),cell_classification == input$rename_cluster_highlight),
+                 colour = "red",
+                 size = 3,
+                 alpha  = 1) +
+      labs(x = "Dimension 1",
+           y = "Dimension 2",
+           title = paste("Original cluster:",input$rename_cluster_highlight))
+    
+    return(dimred_plot)
+  })
+  
+  output$plot_gene_rename_button <- renderUI({
+    req(gene_names_df())
+    if(input$rename_method == "gene_expression"){
+      actionButton("gene_rename_button", "Plot gene!")
+    }
+  })
+  
+  output$gene_exp_threshold <- renderUI({
+    req(gene_names_df())
+    
+    if(input$rename_method == "gene_expression"){
+      sliderInput(inputId = "gene_thresh_selected", 
+                  label ="Select the gene expression threshold!", 
+                  min = 0, max = 10,
+                  value = 1, step = 0.1)
+    }
+  })
+  
+  user_genes_renaming_list <- eventReactive(input$gene_rename_button ,{
+    ## Check that the gene exists in the data
+    gene_vector <- unlist(strsplit(input$genes_renaming,split=","))
+    return(gene_vector)
+  })
+  
+  ## dimensional reduction with genes to plot for expression relabeling
+  dimred_exp_rename <- reactive({
+    req(dimred())
+    req(user_genes_renaming_list())
+    
+    validate(
+      need(user_genes_renaming_list() %in% gene_names_df()$genes,
+           message = "Please enter a valid gene name")
+    )
+    
+    gene_exp <- feather::read_feather(dimred_path(),
+                                      columns = c(user_genes_renaming_list()))
+    
+    dimred_exp_df  <- cbind(dimred(),gene_exp)
+    dimred_exp_df <- dimred_exp_df %>%
+      gather("gene","expression",user_genes_renaming_list())
+    
+    return(dimred_exp_df)
+  })
+  
+  ## ggplot object to highlight genes to rename clusters
+  output$dimred_plot_rename_expression <- renderPlot({
+    req(dimred_exp_rename())
+    req(user_genes_renaming_list())
+    req(input$gene_thresh_selected)
+    
+    dimred_plot <- ggplot(dimred_exp_rename(),aes(tSNE_1,tSNE_2)) +
+      geom_point(data = subset(dimred_exp_rename(),expression < as.numeric(input$gene_thresh_selected)),
+                 colour = "darkgrey",
+                 size = 3,
+                 alpha  = 0.75) +
+      geom_point(data = subset(dimred_exp_rename(),expression >= as.numeric(input$gene_thresh_selected)),
+                 colour = "red",
+                 size = 3,
+                 alpha  = 1) +
+      labs(x = "Dimension 1",
+           y = "Dimension 2",
+           title = paste("Genes:",user_genes_renaming_list()))
+    
+    return(dimred_plot)
+  })
+  
+  ## Print how many cells have been selected by the respective method
+  output$cells_exp_selected <-  renderText({
+    if(input$rename_method == "assigned_clusters"){
+      req(dimred())
+      cells <- subset(dimred(),cell_classification == input$rename_cluster_highlight)
+      cells <- cells$cell_id
+      print(paste("You have selected:",length(cells),"cells in the current assigned cluster.",sep=" "))
+    }else if(input$rename_method == "gene_expression"){
+      req(input$gene_thresh_selected)
+      req(user_genes_renaming_list())
+      cells <- subset(dimred_exp_rename(),expression >= as.numeric(input$gene_thresh_selected))
+      cells <- cells$cell_id
+    print(paste("You have selected:",length(cells),"cells based on the expression of ",length(user_genes_renaming_list()),"genes.",sep=" "))
+    }
+  }) 
+  
+  ## ggplot object to highlight genes to rename clusters
+  output$rename_expression_hist <- renderPlot({
+    req(dimred_exp_rename())
+    req(user_genes_renaming_list())
+    req(input$gene_thresh_selected)
+    
+    dimred_exp_hist <- ggplot(dimred_exp_rename(),aes(expression)) +
+      geom_density(color = "darkgrey") +
+      geom_vline(xintercept = as.numeric(input$gene_thresh_selected),
+                 col = "red", linetype = 2)
+    
+    return(dimred_exp_hist)
+  })
+  
+  output$brush <- renderPrint({
+    req(output$dimred_plot_plotly)
+    d <- event_data("plotly_selected")
+    if (!is.null(d)) d
   })
   
   output$new_cell_labels <- renderUI({
@@ -233,14 +381,9 @@ shinyServer(function(input, output, session) {
   })
   
   
-  user_cell_label <- eventReactive(input$save_new_label ,{
-    ## Check that the gene exists in the data
-    return(input$new_label)
-  })
+
   
-  output$test_rename <-renderText({
-    user_cell_label()
-  })
+  
   
   
   

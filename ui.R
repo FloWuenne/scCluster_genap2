@@ -5,6 +5,7 @@ library(shiny)
 library(shinythemes)
 library(shinyWidgets)
 library(plotly)
+library(shinyFiles)
 
 options(shiny.maxRequestSize = 10000*1024^2)
 
@@ -24,7 +25,6 @@ shinyUI(
     
     tabPanel("Data upload",
              
-
              br(),
              
              # # Ask user to upload their clustering results in feather format
@@ -36,7 +36,6 @@ shinyUI(
                               label = "File select", 
                               title = "Please select a file", multiple = FALSE),
              
-             #verbatimTextOutput("filepaths"),
              br(),
              
              h3("Gene names file"),
@@ -114,7 +113,7 @@ shinyUI(
       ),
     
     ## Table with marker genes
-    tabPanel("Marker_genes",
+    tabPanel("Marker genes",
              
              ## Show this text only when no marker table has been uploaded!
              conditionalPanel(condition = "input.marker_genes == 0",
@@ -128,11 +127,77 @@ shinyUI(
     
     ## Panel for renaming clusters
     tabPanel("Assign cluster names",
+             
+             br(),
+             fluidRow(
+               column(4,
+                      ## Show this text only when no marker table has been uploaded!
+                      conditionalPanel(condition = "input.feather_file == 0",
+                                       h3("Please upload a feather file with clustering results!")
+                      ),
+                      
+                      selectInput("rename_method", 
+                                  label = "How do you want to rename your clusters:", 
+                                  choices = c("Assigned clusters" = "assigned_clusters",
+                                              "Gene expression" = "gene_expression",
+                                              "Cell selection" = "cell_selection"),
+                                  selected = "Assigned clusters", 
+                                  multiple = FALSE)),
+               column(6,
+                      conditionalPanel(condition = "output.rename_selected == 'assigned_clusters'",
+                                       p("This panel let's you rename clusters based on previously assigned clusters by the clustering
+                                         algorithm you used. This works best if you think the cluster assigned are valid and you 
+                                         want to give them meaningful names!")),
+                      
+                      conditionalPanel(condition = "output.rename_selected == 'gene_expression'",
+                                       p("This panel let's you rename cell clusters based on gene expression thresholds.
+                                         This can be a powerful way of classifying cells into clusters of shared expression
+                                         profiles based on known markers and expertise. Currently only supports 1 threshold!"))
+                      
+                      )
+                      
+             ),
+
+             br(),
+             hr(),
+             
+             fluidRow(
+               column(4,
+                      conditionalPanel("output.rename_selected == 'assigned_clusters'",
+                                       plotOutput("dimred_plot_rename_assigned_clusters")
+                                       ),
+                      
+                      conditionalPanel("output.rename_selected == 'gene_expression'",
+                                       plotOutput("dimred_plot_rename_expression")
+                      ),
+                      
+                      conditionalPanel("output.rename_selected == 'gene_expression'",
+                                       plotOutput("rename_expression_hist", height = "200px")
+                      )
+
+                      ),
+               
+               column(4,
+                      uiOutput("rename_list"),
+                      
+                      uiOutput("gene_exp_threshold"),
+                      
+                      uiOutput("plot_gene_rename_button"),
+                      br(),
+                      br(),
+                      h4(textOutput("cells_exp_selected"))
+                      ),
+               column(4,
+                      p("put the controls for renaming clusters here!"))
+               
+             )
+             
+             # 
+             # verbatimTextOutput("brush")
+
+    )
                      
-                     h4("This panel will contain options to rename clusters. Currently I have 3 methods planned.
-                     1) Rename clusters based on assigned communities.
-                     2) Assign clusters based on expression.
-                        3) Assign clusters based on manually selecting cells."))
+
     
   ) # end of TabsetPanel
   ) # end of fluidPage
