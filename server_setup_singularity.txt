@@ -8,12 +8,14 @@ apt-get install libxml2-dev
 
 ## install R packages
 ## Default repo
+
+
+R
 local({r <- getOption("repos")
        r["CRAN"] <- "http://cran.r-project.org" 
        options(repos=r)
 })
 
-R
 install.packages("shiny")
 install.packages("feather")
 install.packages("shinycssloaders")
