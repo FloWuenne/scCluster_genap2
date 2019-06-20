@@ -1,0 +1,17 @@
+# This is the setup required to run this server inside a singularity container
+
+apt-get update
+apt-get install libcurl4-openssl-dev
+apt-get install default-jdk
+apt-get install libssl-dev
+apt-get install libxml2-dev
+
+## install R packages
+## Default repo
+local({r <- getOption("repos")
+       r["CRAN"] <- "http://cran.r-project.org" 
+       options(repos=r)
+})
+
+R
+
