@@ -441,12 +441,45 @@ shinyServer(function(input, output, session) {
 
   })
   
-  clustering_solution <- eventReactive(input$start_clustering_solution ,{
+  ## When user cliks to start renaming solution, create new cluster set
+  ## reactive value holding the state of a clustering file as well as the new cluster name
+  user_clustering_file <- eventReactive(input$start_clustering_solution ,{
+    ## Check if user loaded cluster labels file
+    if(length(colnames(user_clusterings_from_file())) > 0){
+      cluster_file_solution <- "use_existing"
+    }else{
+      cluster_file_solution <- "make_new"
+    }
+    
+    clustering_name <- input$user_clustering_name
+    
+    return(list(
+      "cluster_file"= cluster_file_solution,
+      "cluster_colname" = clustering_name))
+  })
+  
+  output$current_clustering_name <- renderText({
+    return(user_clustering_file()[["cluster_colname"]])
+  })
+  
+
+  selected_clusters <- eventReactive(input$start_clustering_solution ,{
     ## Create new feather file with 1 column that at the start is equivalent 
     ## to the current clustering
-    current_clusters <- 
     
-    return(input$user_gene_clustering)
+    req(input$clustering_to_rename)
+    
+    clusters_to_rename <- input$clustering_to_rename
+    
+    ## Check which clustering solutions the user wants to edit
+    if(clusters_to_rename == "cell_classification"){
+      selected_clusters <- dimred()$cell_classification
+    }else{ ## User chose a different clustering
+      req(user_clusterings_from_file())
+      selected_clusters <- user_clusterings_from_file()$clusters_to_rename
+    }
+    
+    return(selected_clusters)
   })
   
   

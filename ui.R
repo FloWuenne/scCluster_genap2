@@ -152,20 +152,45 @@ shinyUI(
     tabPanel("Assign cluster names",icon = icon("file-signature"),
              
              br(),
+
              fluidRow(
                column(4,
-                      ## Show this text only when no marker table has been uploaded!
+                      uiOutput("choices_clusterings_rename")),
+                      
+               column(4,
+                      textInput(inputId = "user_clustering_name", 
+                                label = "How do you want to label this clustering solution?",
+                                value = "")
+                      ),
+               
+               column(4,
+                      actionButton("start_clustering_solution", "Start renaming clusters!"),
+                      textOutput("current_clustering_name")
+                      )
+             ),
+             
+             br(),
+             hr(),
+             
+             
+             fluidRow(
+               column(4,
+                      ## Show this text only when no clustering file has been uploaded
                       conditionalPanel(condition = "input.feather_file == 0",
                                        h3("Please upload a feather file with clustering results!")
                       ),
                       
-                      selectInput("rename_method", 
-                                  label = "How do you want to rename your clusters:", 
-                                  choices = c("Assigned clusters" = "assigned_clusters",
-                                              "Gene expression" = "gene_expression",
-                                              "Cell selection" = "cell_selection"),
-                                  selected = "Assigned clusters", 
-                                  multiple = FALSE)),
+                      conditionalPanel(condition = "input.feather_file != 0",
+                                       selectInput("rename_method", 
+                                                   label = "How do you want to rename your clusters:", 
+                                                   choices = c("Assigned clusters" = "assigned_clusters",
+                                                               "Gene expression" = "gene_expression",
+                                                               "Cell selection" = "cell_selection"),
+                                                   selected = "Assigned clusters", 
+                                                   multiple = FALSE)
+                                       )
+                      ),
+               
                column(6,
                       conditionalPanel(condition = "output.rename_selected == 'assigned_clusters'",
                                        p("This panel let's you rename clusters based on previously assigned clusters by the clustering
@@ -176,29 +201,15 @@ shinyUI(
                                        p("This panel let's you rename cell clusters based on gene expression thresholds.
                                          This can be a powerful way of classifying cells into clusters of shared expression
                                          profiles based on known markers and expertise. Currently only supports 1 threshold!"))
-                      
                       )
-                      
-             ),
-
-             br(),
-             hr(),
-             
-             fluidRow(
-               column(4,
-                      uiOutput("choices_clusterings_rename")),
-                      
-               column(4,
-                      textInput(inputId = "user_clustering_name", 
-                                label = "How do you want to label this clustering solution?")),
                
-               column(4,
-                      actionButton("start_clustering_solution", "Start renaming clusters!") )
              ),
              
              br(),
              hr(),
              
+             
+             ## Reactive panels that change based on how the user wants to rename clusters
              fluidRow(
                column(4,
                       conditionalPanel("output.rename_selected == 'assigned_clusters'",
