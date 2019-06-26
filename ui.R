@@ -7,53 +7,76 @@ library(shinyWidgets)
 library(plotly)
 library(shinyFiles)
 
+## Define how much RAM R should ask for for caching
 options(shiny.maxRequestSize = 10000*1024^2)
-
 
 # Define UI for application that draws a histogram
 shinyUI(
-  fluidPage(theme = shinytheme("cosmo"),
+  fluidPage(theme = shinytheme("readable"),
+            
+            ## include css stylesheet
+            #includeCSS("styles.css"),
+            
             id = "main_page",
             
             # Application title
-            titlePanel("Visualize and analyse your scRNA-seq clustering results",
+            h1("Visualize and analyse your scRNA-seq clustering results",
                        windowTitle = "scRNA-seq clustering"),
             
             br(),
   
   tabsetPanel(
     
-    tabPanel("Data upload",
+    tabPanel("Data upload", icon = icon("file-upload"),
              
-             br(),
+             fluidRow(
+               column(6,
+                      h2("File upload center")
+                      )
+             ),
              
-             # # Ask user to upload their clustering results in feather format
-             # fileInput("user_cluster_rds", "Choose a feather file containing clustering results...",
-             #           multiple = FALSE),
+             hr(),
              
-             h3("Clustering feather file"),
-             shinyFilesButton(id = "feather_file", 
-                              label = "File select", 
-                              title = "Please select a file", multiple = FALSE),
-             
-             br(),
-             
-             h3("Gene names file"),
-             shinyFilesButton(id = "gene_names", 
-                              label = "File select", 
-                              title = "Please select a file", multiple = FALSE),
-             
-             #verbatimTextOutput("filepaths"),
-             
-             h3("Marker genes table"),
-             
-             shinyFilesButton(id = "marker_genes", 
-                              label = "File select", 
-                              title = "Please select a file", multiple = FALSE)
+             fluidRow(
+               column(3,
+                      h3("Clustering file"),
+                      
+                      shinyFilesButton(id = "feather_file", 
+                                       label = "File select", 
+                                       title = "Please select a file", multiple = FALSE)
+                      ),
+               
+               column(3,
+                      h3("Gene names"),
+                      
+                      shinyFilesButton(id = "gene_names", 
+                                       label = "File select", 
+                                       title = "Please select a file", multiple = FALSE)
+               ),
+               
+               column(3,
+                      h3("Marker genes"),
+                      
+                      shinyFilesButton(id = "marker_genes", 
+                                       label = "File select", 
+                                       title = "Please select a file", multiple = FALSE)
+               ),
+               
+               column(3,
+                      h3("User clusters"),
+                      
+                      shinyFilesButton(id = "user_cluster_file", 
+                                       label = "File select", 
+                                       title = "Please select a file", multiple = FALSE),
+                      
+                      verbatimTextOutput("cluster_columns")
+
+               )
+             ) # end of fluidRow
     ),
     
     ## Table with dimensional reduction
-    tabPanel("Dimensional reduction",
+    tabPanel("Dimensional reduction",icon = icon("circle"),
              
              br(),
              
@@ -113,7 +136,7 @@ shinyUI(
       ),
     
     ## Table with marker genes
-    tabPanel("Marker genes",
+    tabPanel("Marker genes",icon = icon("highlighter"),
              
              ## Show this text only when no marker table has been uploaded!
              conditionalPanel(condition = "input.marker_genes == 0",
@@ -126,7 +149,7 @@ shinyUI(
             ),
     
     ## Panel for renaming clusters
-    tabPanel("Assign cluster names",
+    tabPanel("Assign cluster names",icon = icon("file-signature"),
              
              br(),
              fluidRow(
@@ -158,6 +181,21 @@ shinyUI(
                       
              ),
 
+             br(),
+             hr(),
+             
+             fluidRow(
+               column(4,
+                      uiOutput("choices_clusterings_rename")),
+                      
+               column(4,
+                      textInput(inputId = "user_clustering_name", 
+                                label = "How do you want to label this clustering solution?")),
+               
+               column(4,
+                      actionButton("start_clustering_solution", "Start renaming clusters!") )
+             ),
+             
              br(),
              hr(),
              

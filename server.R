@@ -12,8 +12,14 @@ library(cowplot)
 # Define server logic required to draw a histogram
 shinyServer(function(input, output, session) {
   
+  ## Volumes for testing
   volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
   
+  ## Volumes for GenAP2 production environment
+  # volumes <- c(getVolumes()())
+  
+  
+  #### Clustering file
   ## Feather clustering file
   shinyFileChoose(input, "feather_file", 
                   roots = volumes,
@@ -21,9 +27,9 @@ shinyServer(function(input, output, session) {
                   defaultPath = 'Postdoc/Genap/data',
                   session = session)
   
-  output$filepaths <- renderPrint({
-    parseFilePaths(volumes, input$feather_file)
-  })
+  # output$filepaths <- renderPrint({
+  #   parseFilePaths(volumes, input$feather_file)
+  # })
   
   ## path to the uploaded feather file
   dimred_path <- reactive({
@@ -42,12 +48,14 @@ shinyServer(function(input, output, session) {
     return(dimred)
   })
   
-  output$dimredoutput <- reactive({
-    return(dimred())
-  })
+  ## Delete?
+  # output$dimredoutput <- reactive({
+  #   return(dimred())
+  # })
+  # 
+  # outputOptions(output, 'dimredoutput', suspendWhenHidden = FALSE)
   
-  outputOptions(output, 'dimredoutput', suspendWhenHidden = FALSE)
-  
+  ####
   ## gene names file
   shinyFileChoose(input, "gene_names", 
                   roots = volumes,
@@ -68,6 +76,7 @@ shinyServer(function(input, output, session) {
     return(gene_names_df)
   })
   
+  #### 
   ## Marker list
   ## gene names file
   shinyFileChoose(input, "marker_genes", 
@@ -89,8 +98,36 @@ shinyServer(function(input, output, session) {
     return(marker_genes_table)
   })
   
+  ####
+  ## User clustering solutions
+  shinyFileChoose(input, "user_cluster_file",
+                  roots = volumes,
+                  defaultRoot = 'Home',
+                  defaultPath = 'Postdoc/Genap/data',
+                  session = session)
+
+  ## path to the uploaded feather file
+  user_cluster_path <- reactive({
+    req(input$user_cluster_file)
+    user_cluster_path <- parseFilePaths(volumes, input$user_cluster_file)$datapath
+    return(user_cluster_path)
+  })
+
+  user_clusterings_from_file <- reactive({
+    req(user_cluster_path())
+    ## Read in clustering data
+    user_cluster_labels <- feather::read_feather(user_cluster_path())
+    return(user_cluster_labels)
+  })
+  
+  output$cluster_columns <- renderPrint({
+    req(user_clusterings_from_file())
+    return(colnames(user_clusterings_from_file())[1:3])
+  })
+
+  
+  ## Check that the gene exists in the data
   user_gene <- eventReactive(input$plot_gene_button ,{
-    ## Check that the gene exists in the data
     return(input$user_gene_clustering)
   })
   
@@ -378,6 +415,38 @@ shinyServer(function(input, output, session) {
     textInput(inputId = "new_label",
               label = "Enter new cell label:",
               value =input$original_label)
+  })
+  
+  
+  #### Controls for renaming clusters
+  
+  ## List of available clustering solutions
+  output$choices_clusterings_rename <- renderUI({
+
+    ## Original cluster label is cell_classification
+    original_cluster_labels <- "cell_classification"
+    
+    ## Check if user loaded a clustering solutions file 
+    if(length(colnames(user_clusterings_from_file())) > 0){
+      other_clusterings <- colnames(user_clusterings_from_file())[1:3]
+      all_clusterings <- c(original_cluster_labels,other_clusterings)
+    }else{
+      all_clusterings <- c(original_cluster_labels)
+    }
+    
+    ## Check if the user has created other clusterings
+    selectInput(inputId = "clustering_to_rename", 
+                label = "Which clustering do you want to rename?",
+                choices = all_clusterings)
+
+  })
+  
+  clustering_solution <- eventReactive(input$start_clustering_solution ,{
+    ## Create new feather file with 1 column that at the start is equivalent 
+    ## to the current clustering
+    current_clusters <- 
+    
+    return(input$user_gene_clustering)
   })
   
   
