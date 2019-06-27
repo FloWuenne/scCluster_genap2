@@ -1,3 +1,8 @@
+## Data loading
+## Default file naming convention
+## 1) Clustering file: shiny_clustering_file.feather
+## 2) 
+
 ## Load libraries
 library(shiny)
 library(tidyverse)
@@ -14,28 +19,52 @@ shinyServer(function(input, output, session) {
   
   ## Volumes for testing
   volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
+  default_path <- 'Postdoc/Genap/data'
+  default_home <- 'Home'
   
   ## Volumes for GenAP2 production environment
-  # volumes <- c(getVolumes()())
+  # volumes <- c(FTP = "/ftp")
+  
+  ## File directory
+  shinyDirChoose(input, "file_dir", 
+                 roots = volumes, 
+                 session = session, 
+                 defaultRoot = default_home,
+                 defaultPath = default_path,
+                 restrictions = system.file(package = "base"))
+  
+  ## Get the location of the selected folder as a reactive variable
+  file_dir_path <- reactive({
+    req(input$file_dir)
+    this_path <- parseDirPath(c("Home" = paste(fs::path_home(),default_path,sep="/")), input$file_dir)
+    return(this_path)
+  })
   
   
   #### Clustering file
   ## Feather clustering file
   shinyFileChoose(input, "feather_file", 
                   roots = volumes,
-                  defaultRoot = 'Home', 
-                  defaultPath = 'Postdoc/Genap/data',
+                  defaultRoot = default_home, 
+                  defaultPath = default_path,
                   session = session)
   
-  # output$filepaths <- renderPrint({
-  #   parseFilePaths(volumes, input$feather_file)
-  # })
   
   ## path to the uploaded feather file
   dimred_path <- reactive({
-    req(input$feather_file)
-    dimred_path <- parseFilePaths(volumes, input$feather_file)$datapath
-    return(dimred_path)
+    if(input$upload_method == "Individual_Files"){
+      req(input$feather_file)
+      dimred_file <- parseFilePaths(volumes, input$feather_file)$datapath
+    }else if(input$upload_method == "Folder"){
+      req(file_dir_path())
+      dimred_file <- paste(file_dir_path(),"/","shiny_clustering_file.feather",sep="")
+    }
+    
+    return(dimred_file)
+  })
+  
+  output$test_path <- renderPrint({
+    return(dimred_path())
   })
   
   dimred <- reactive({
@@ -48,25 +77,30 @@ shinyServer(function(input, output, session) {
     return(dimred)
   })
   
-  ## Delete?
-  # output$dimredoutput <- reactive({
-  #   return(dimred())
-  # })
-  # 
-  # outputOptions(output, 'dimredoutput', suspendWhenHidden = FALSE)
+  ## Reactive output for enabling conditionalPanel based on file input
+  output$dimredoutput <- reactive({
+    return(dimred())
+  })
+
+  outputOptions(output, 'dimredoutput', suspendWhenHidden = FALSE)
   
   ####
   ## gene names file
   shinyFileChoose(input, "gene_names", 
                   roots = volumes,
-                  defaultRoot = 'Home', 
-                  defaultPath = 'Postdoc/Genap/data',
+                  defaultRoot = default_home, 
+                  defaultPath = default_path,
                   session = session)
   
   ## path to the uploaded feather file
   gene_names_path <- reactive({
-    req(input$gene_names)
-    gene_names_path <- parseFilePaths(volumes, input$gene_names)$datapath
+    if(input$upload_method == "Individual_Files"){
+      req(input$gene_names)
+      gene_names_path <- parseFilePaths(volumes, input$gene_names)$datapath
+    }else if(input$upload_method == "Folder"){
+      req(file_dir_path())
+      gene_names_path <- paste(file_dir_path(),"/","shiny_gene_names.tsv",sep="")
+  }
     return(gene_names_path)
   })
   
@@ -81,14 +115,19 @@ shinyServer(function(input, output, session) {
   ## gene names file
   shinyFileChoose(input, "marker_genes", 
                   roots = volumes,
-                  defaultRoot = 'Home', 
-                  defaultPath = 'Postdoc/Genap/data',
+                  defaultRoot = default_home, 
+                  defaultPath = default_path,
                   session = session)
   
   ## path to the uploaded feather file
   marker_genes_path <- reactive({
-    req(input$marker_genes)
-    marker_genes_path <- parseFilePaths(volumes, input$marker_genes)$datapath
+    if(input$upload_method == "Individual_Files"){
+      req(input$marker_genes)
+      marker_genes_path <- parseFilePaths(volumes, input$marker_genes)$datapath
+      }else if(input$upload_method == "Folder"){
+        req(file_dir_path())
+        marker_genes_path <- paste(file_dir_path(),"/","shiny_marker_table.tsv",sep="")
+  }
     return(marker_genes_path)
   })
   
@@ -102,14 +141,19 @@ shinyServer(function(input, output, session) {
   ## User clustering solutions
   shinyFileChoose(input, "user_cluster_file",
                   roots = volumes,
-                  defaultRoot = 'Home',
-                  defaultPath = 'Postdoc/Genap/data',
+                  defaultRoot = default_home,
+                  defaultPath = default_path,
                   session = session)
 
   ## path to the uploaded feather file
   user_cluster_path <- reactive({
-    req(input$user_cluster_file)
-    user_cluster_path <- parseFilePaths(volumes, input$user_cluster_file)$datapath
+    if(input$upload_method == "Individual_Files"){
+      req(input$user_cluster_file)
+      user_cluster_path <- parseFilePaths(volumes, input$user_cluster_file)$datapath
+    }else if(input$upload_method == "Folder"){
+      req(file_dir_path())
+      user_cluster_path <- paste(file_dir_path(),"/","shiny_user_clustering.feather",sep="")
+    }
     return(user_cluster_path)
   })
 
@@ -122,7 +166,7 @@ shinyServer(function(input, output, session) {
   
   output$cluster_columns <- renderPrint({
     req(user_clusterings_from_file())
-    return(colnames(user_clusterings_from_file())[1:3])
+    return(colnames(user_clusterings_from_file()))
   })
 
   
@@ -400,7 +444,8 @@ shinyServer(function(input, output, session) {
     dimred_exp_hist <- ggplot(dimred_exp_rename(),aes(expression)) +
       geom_density(color = "darkgrey") +
       geom_vline(xintercept = as.numeric(input$gene_thresh_selected),
-                 col = "red", linetype = 2)
+                 col = "red", linetype = 2) +
+      scale_x_continuous(breaks = round(seq(min(dimred_exp_rename()$expression), max(dimred_exp_rename()$expression), by = 1),1))
     
     return(dimred_exp_hist)
   })
@@ -420,68 +465,85 @@ shinyServer(function(input, output, session) {
   
   #### Controls for renaming clusters
   
+  ## Get a list of all existing cluster namings
+  colname_clusterings <- reactive({
+    colname_clusterings <- colnames(user_clusterings_from_file())
+    return(colname_clusterings)
+  })
+  
+  all_clusterings <- reactiveValues("clusters" = isolate(all_clusterings()))
+  
+  observeEvent(input$start_clustering_solution, {
+    all_clusterings$clusters <- c(isolate(all_clusterings()), isolate(user_clustering_name()))
+  })
+  
   ## List of available clustering solutions
   output$choices_clusterings_rename <- renderUI({
 
-    ## Original cluster label is cell_classification
-    original_cluster_labels <- "cell_classification"
-    
-    ## Check if user loaded a clustering solutions file 
-    if(length(colnames(user_clusterings_from_file())) > 0){
-      other_clusterings <- colnames(user_clusterings_from_file())[1:3]
-      all_clusterings <- c(original_cluster_labels,other_clusterings)
-    }else{
-      all_clusterings <- c(original_cluster_labels)
-    }
-    
+    req(all_clusterings())
+
     ## Check if the user has created other clusterings
     selectInput(inputId = "clustering_to_rename", 
                 label = "Which clustering do you want to rename?",
-                choices = all_clusterings)
+                choices = all_clusterings())
 
   })
+  
+  update_all_clusterings <- reactive({
+    req(user_clustering_name())
+
+    updated_clusters <- c(all_clusterings(),user_clustering_name())
+    return(updated_clusters)
+  })
+  
+  # Can also set the label and select items
+  observe({
+    req(update_all_clusterings())
+    
+    updateSelectInput(session, "clustering_to_rename",
+                      label = "Which clustering do you want to rename?",
+                      choices = update_all_clusterings()
+    )
+  })
+
   
   ## When user cliks to start renaming solution, create new cluster set
   ## reactive value holding the state of a clustering file as well as the new cluster name
-  user_clustering_file <- eventReactive(input$start_clustering_solution ,{
+  user_clustering_name <- eventReactive(input$start_clustering_solution ,{
     ## Check if user loaded cluster labels file
-    if(length(colnames(user_clusterings_from_file())) > 0){
-      cluster_file_solution <- "use_existing"
-    }else{
-      cluster_file_solution <- "make_new"
-    }
-    
     clustering_name <- input$user_clustering_name
-    
-    return(list(
-      "cluster_file"= cluster_file_solution,
-      "cluster_colname" = clustering_name))
+    if(clustering_name == ""){
+      ## If user doesn't enter name, generate new name automatically
+      clustering_name <- paste("new_clustering",ncol(user_clusterings_from_file())+1)
+    }else{
+      clustering_name <- clustering_name
+    }
+    return(clustering_name)
   })
   
-  output$current_clustering_name <- renderText({
-    return(user_clustering_file()[["cluster_colname"]])
+  current_cluster_names <- reactive({
+    ## Requires the feather file that holds the clustering solutions
+    req(user_clusterings_from_file())
+    req(input$clustering_to_rename)
+    req(user_clustering_name())
+    
+    cluster_colname <- input$clustering_to_rename
+    
+    cluster_names <- user_clusterings_from_file()[[cluster_colname]]
+    
+    return(cluster_names)
   })
+  
+  
+  output$print_cluster_names <- renderText({
+    return(unique(current_cluster_names()))
+  })
+
+  
+  
+  
   
 
-  selected_clusters <- eventReactive(input$start_clustering_solution ,{
-    ## Create new feather file with 1 column that at the start is equivalent 
-    ## to the current clustering
-    
-    req(input$clustering_to_rename)
-    
-    clusters_to_rename <- input$clustering_to_rename
-    
-    ## Check which clustering solutions the user wants to edit
-    if(clusters_to_rename == "cell_classification"){
-      selected_clusters <- dimred()$cell_classification
-    }else{ ## User chose a different clustering
-      req(user_clusterings_from_file())
-      selected_clusters <- user_clusterings_from_file()$clusters_to_rename
-    }
-    
-    return(selected_clusters)
-  })
-  
   
 
   

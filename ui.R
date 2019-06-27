@@ -38,6 +38,33 @@ shinyUI(
              hr(),
              
              fluidRow(
+               column(6,
+                      selectInput("upload_method",
+                                  label = "Choose how you want to upload your data",
+                                  choices = c("Folder","Individual_Files"),
+                                  selected = "Individual_Files")
+                      )
+
+             ),
+             
+             fluidRow(
+               column(12,
+                      h3("File directory"),
+                      
+                      shinyDirButton("file_dir", "Folder select", "Please select a folder"),
+                      
+                      verbatimTextOutput("test_path")
+                      )
+               ),
+             
+             hr(),
+             
+             fluidRow(
+               column(12,
+                      h3("Individual files")
+                      ),
+               
+               
                column(3,
                       h3("Clustering file"),
                       
@@ -154,19 +181,27 @@ shinyUI(
              br(),
 
              fluidRow(
+               
+               conditionalPanel(condition = "!output.dimredoutput",
+                                h3("Please upload a feather file with clustering results!")
+               ),
+               
                column(4,
                       uiOutput("choices_clusterings_rename")),
                       
                column(4,
+                      conditionalPanel(condition = "output.dimredoutput",
                       textInput(inputId = "user_clustering_name", 
                                 label = "How do you want to label this clustering solution?",
                                 value = "")
-                      ),
+                      )),
                
                column(4,
+                      conditionalPanel(condition = "output.dimredoutput",
                       actionButton("start_clustering_solution", "Start renaming clusters!"),
-                      textOutput("current_clustering_name")
-                      )
+                      br(),
+                      verbatimTextOutput("print_cluster_names")
+                      ))
              ),
              
              br(),
@@ -175,12 +210,8 @@ shinyUI(
              
              fluidRow(
                column(4,
-                      ## Show this text only when no clustering file has been uploaded
-                      conditionalPanel(condition = "input.feather_file == 0",
-                                       h3("Please upload a feather file with clustering results!")
-                      ),
-                      
-                      conditionalPanel(condition = "input.feather_file != 0",
+
+                      conditionalPanel(condition = "output.dimredoutput",
                                        selectInput("rename_method", 
                                                    label = "How do you want to rename your clusters:", 
                                                    choices = c("Assigned clusters" = "assigned_clusters",
@@ -192,12 +223,12 @@ shinyUI(
                       ),
                
                column(6,
-                      conditionalPanel(condition = "output.rename_selected == 'assigned_clusters'",
+                      conditionalPanel(condition = "output.rename_selected == 'assigned_clusters' && output.dimredoutput",
                                        p("This panel let's you rename clusters based on previously assigned clusters by the clustering
                                          algorithm you used. This works best if you think the cluster assigned are valid and you 
                                          want to give them meaningful names!")),
                       
-                      conditionalPanel(condition = "output.rename_selected == 'gene_expression'",
+                      conditionalPanel(condition = "output.rename_selected == 'gene_expression' && output.dimredoutput",
                                        p("This panel let's you rename cell clusters based on gene expression thresholds.
                                          This can be a powerful way of classifying cells into clusters of shared expression
                                          profiles based on known markers and expertise. Currently only supports 1 threshold!"))
@@ -237,7 +268,7 @@ shinyUI(
                       h4(textOutput("cells_exp_selected"))
                       ),
                column(4,
-                      p("put the controls for renaming clusters here!"))
+                      p(""))
                
              )
              
