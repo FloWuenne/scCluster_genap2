@@ -129,7 +129,7 @@ shinyUI(
                  br(),
              
              ## Show this text only when no feather file has been uploaded
-             conditionalPanel(condition = "input.feather_file == 0",
+             conditionalPanel(condition = "!output.dimredoutput",
                               h3("Please upload a feather file with clustering results!")
              ),
              
@@ -166,11 +166,11 @@ shinyUI(
     tabPanel("Marker genes",icon = icon("highlighter"),
              
              ## Show this text only when no marker table has been uploaded!
-             conditionalPanel(condition = "input.marker_genes == 0",
+             conditionalPanel(condition = "!output.marker_genes_table_out",
                               h3("Please upload a marker gene table!")
              ),
              
-             conditionalPanel(condition = "input.marker_genes",
+             conditionalPanel(condition = "output.marker_genes_table_out",
                               dataTableOutput("table_marker_genes")
              )
             ),
@@ -198,9 +198,9 @@ shinyUI(
                
                column(4,
                       conditionalPanel(condition = "output.dimredoutput",
-                      actionButton("start_clustering_solution", "Start renaming clusters!"),
-                      br(),
-                      verbatimTextOutput("print_cluster_names")
+                                       actionButton("start_clustering_solution", "Start renaming clusters!"),
+                                       br(),
+                                       verbatimTextOutput("print_cluster_names")
                       ))
              ),
              

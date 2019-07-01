@@ -13,6 +13,7 @@ library(data.table)
 library(plotly)
 library(RColorBrewer)
 library(cowplot)
+library(shinyFiles)
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output, session) {
@@ -29,14 +30,15 @@ shinyServer(function(input, output, session) {
   shinyDirChoose(input, "file_dir", 
                  roots = volumes, 
                  session = session, 
-                 defaultRoot = default_home,
-                 defaultPath = default_path,
+                 # defaultRoot = default_home,
+                 # defaultPath = default_path,
                  restrictions = system.file(package = "base"))
   
   ## Get the location of the selected folder as a reactive variable
   file_dir_path <- reactive({
     req(input$file_dir)
-    this_path <- parseDirPath(c("Home" = paste(fs::path_home(),default_path,sep="/")), input$file_dir)
+    #this_path <- parseDirPath(c("Home" = paste(fs::path_home(),default_path,sep="/")), input$file_dir)
+    this_path <- parseDirPath(c("Home" = paste(fs::path_home(),sep="/")), input$file_dir)
     return(this_path)
   })
   
@@ -137,6 +139,13 @@ shinyServer(function(input, output, session) {
     return(marker_genes_table)
   })
   
+  output$marker_genes_table_out <- reactive({
+    return(marker_genes_table())
+  })
+  
+  outputOptions(output, 'marker_genes_table_out', suspendWhenHidden = FALSE)
+  
+
   ####
   ## User clustering solutions
   shinyFileChoose(input, "user_cluster_file",
@@ -164,7 +173,7 @@ shinyServer(function(input, output, session) {
     return(user_cluster_labels)
   })
   
-  output$cluster_columns <- renderPrint({
+  output$initial_cluster_columns <- renderPrint({
     req(user_clusterings_from_file())
     return(colnames(user_clusterings_from_file()))
   })
@@ -328,6 +337,7 @@ shinyServer(function(input, output, session) {
   output$rename_selected <- reactive({
     return(input$rename_method)
     })
+  
   outputOptions(output, "rename_selected", suspendWhenHidden = FALSE)
 
   
@@ -466,26 +476,28 @@ shinyServer(function(input, output, session) {
   #### Controls for renaming clusters
   
   ## Get a list of all existing cluster namings
-  colname_clusterings <- reactive({
+  all_clusterings <- reactive({
     colname_clusterings <- colnames(user_clusterings_from_file())
     return(colname_clusterings)
   })
   
-  all_clusterings <- reactiveValues("clusters" = isolate(all_clusterings()))
+  initial_cluster_columns
   
-  observeEvent(input$start_clustering_solution, {
-    all_clusterings$clusters <- c(isolate(all_clusterings()), isolate(user_clustering_name()))
-  })
+  # all_clusterings <- reactiveValues()
+  # 
+  # observeEvent(input$start_clustering_solution, {
+  #   all_clusterings$clusters <- c(isolate(all_clusterings()), isolate(user_clustering_name()))
+  # })
   
   ## List of available clustering solutions
   output$choices_clusterings_rename <- renderUI({
 
-    req(all_clusterings())
+    req(initial_cluster_columns())
 
     ## Check if the user has created other clusterings
     selectInput(inputId = "clustering_to_rename", 
                 label = "Which clustering do you want to rename?",
-                choices = all_clusterings())
+                choices = initial_cluster_columns())
 
   })
   
