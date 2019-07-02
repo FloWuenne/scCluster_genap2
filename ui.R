@@ -42,7 +42,7 @@ shinyUI(
                       selectInput("upload_method",
                                   label = "Choose how you want to upload your data",
                                   choices = c("Folder","Individual_Files"),
-                                  selected = "Individual_Files")
+                                  selected = "Folder")
                       )
 
              ),

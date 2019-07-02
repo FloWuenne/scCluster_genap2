@@ -30,15 +30,17 @@ shinyServer(function(input, output, session) {
   shinyDirChoose(input, "file_dir", 
                  roots = volumes, 
                  session = session, 
-                 # defaultRoot = default_home,
-                 # defaultPath = default_path,
+                 defaultRoot = default_home,
+                 defaultPath = default_path,
                  restrictions = system.file(package = "base"))
   
   ## Get the location of the selected folder as a reactive variable
   file_dir_path <- reactive({
     req(input$file_dir)
-    #this_path <- parseDirPath(c("Home" = paste(fs::path_home(),default_path,sep="/")), input$file_dir)
-    this_path <- parseDirPath(c("Home" = paste(fs::path_home(),sep="/")), input$file_dir)
+    # (#home)
+    this_path <- parseDirPath(c("Home" = paste(fs::path_home(),default_path,sep="/")), input$file_dir)
+    ## Path for work machine (#work)
+    #this_path <- parseDirPath(c("Home" = paste(fs::path_home(),sep="/")), input$file_dir)
     return(this_path)
   })
   
@@ -173,11 +175,6 @@ shinyServer(function(input, output, session) {
     return(user_cluster_labels)
   })
   
-  output$initial_cluster_columns <- renderPrint({
-    req(user_clusterings_from_file())
-    return(colnames(user_clusterings_from_file()))
-  })
-
   
   ## Check that the gene exists in the data
   user_gene <- eventReactive(input$plot_gene_button ,{
@@ -480,31 +477,36 @@ shinyServer(function(input, output, session) {
     colname_clusterings <- colnames(user_clusterings_from_file())
     return(colname_clusterings)
   })
-  
-  initial_cluster_columns
-  
-  # all_clusterings <- reactiveValues()
-  # 
-  # observeEvent(input$start_clustering_solution, {
-  #   all_clusterings$clusters <- c(isolate(all_clusterings()), isolate(user_clustering_name()))
-  # })
+
+  observeEvent(input$start_clustering_solution, {
+    all_clusterings <- c(isolate(all_clusterings()), isolate(user_clustering_name()))
+  })
   
   ## List of available clustering solutions
   output$choices_clusterings_rename <- renderUI({
 
-    req(initial_cluster_columns())
+    req(all_clusterings())
 
     ## Check if the user has created other clusterings
     selectInput(inputId = "clustering_to_rename", 
                 label = "Which clustering do you want to rename?",
-                choices = initial_cluster_columns())
+                choices = colnames(all_clusterings()))
 
   })
   
+  ##
   update_all_clusterings <- reactive({
+    
     req(user_clustering_name())
+    
+    ## if this is the first time the user clicks the button
+    if(){
+      updated_clusters <- c(all_clusterings(),user_clustering_name())
+    }else{
+      
+    }
 
-    updated_clusters <- c(all_clusterings(),user_clustering_name())
+
     return(updated_clusters)
   })
   
