@@ -23,83 +23,49 @@ shinyUI(
             h1("Visualize and analyse your scRNA-seq clustering results",
                        windowTitle = "scRNA-seq clustering"),
             
-            br(),
+            hr(),
+            
+            fluidRow(style = "background-color:#C2C5CC;",align="center",
+                     br(),
+                     column(6,align="center",
+                            conditionalPanel(condition = "output.user_cluster_labels",
+                                      uiOutput("available_cluster_labels"))
+                            ),
+                     column(6,align="center",
+                            conditionalPanel(condition = "output.user_cluster_labels",
+                                             textOutput("selected_annotation"))
+                            ),
+                     br()
+                     ),
+            
+            hr(),
   
   tabsetPanel(
     
     tabPanel("Data upload", icon = icon("file-upload"),
              
              fluidRow(
-               column(6,
-                      h2("File upload center")
+               
+               hr(),
+               
+               column(12, align="center",
+                      h2("Add image for pipeline here!")
                       )
              ),
              
              hr(),
              
              fluidRow(
-               column(6,
-                      selectInput("upload_method",
-                                  label = "Choose how you want to upload your data",
-                                  choices = c("Folder","Individual_Files"),
-                                  selected = "Folder")
-                      )
-
-             ),
-             
-             fluidRow(
-               column(12,
+               column(12, align="center",
                       h3("File directory"),
                       
                       shinyDirButton("file_dir", "Folder select", "Please select a folder"),
                       
                       verbatimTextOutput("test_path")
                       )
-               ),
-             
-             hr(),
-             
-             fluidRow(
-               column(12,
-                      h3("Individual files")
-                      ),
-               
-               
-               column(3,
-                      h3("Clustering file"),
-                      
-                      shinyFilesButton(id = "feather_file", 
-                                       label = "File select", 
-                                       title = "Please select a file", multiple = FALSE)
-                      ),
-               
-               column(3,
-                      h3("Gene names"),
-                      
-                      shinyFilesButton(id = "gene_names", 
-                                       label = "File select", 
-                                       title = "Please select a file", multiple = FALSE)
-               ),
-               
-               column(3,
-                      h3("Marker genes"),
-                      
-                      shinyFilesButton(id = "marker_genes", 
-                                       label = "File select", 
-                                       title = "Please select a file", multiple = FALSE)
-               ),
-               
-               column(3,
-                      h3("User clusters"),
-                      
-                      shinyFilesButton(id = "user_cluster_file", 
-                                       label = "File select", 
-                                       title = "Please select a file", multiple = FALSE),
-                      
-                      verbatimTextOutput("cluster_columns")
-
                )
-             ) # end of fluidRow
+
+
     ),
     
     ## Table with dimensional reduction
@@ -176,31 +142,27 @@ shinyUI(
             ),
     
     ## Panel for renaming clusters
-    tabPanel("Assign cluster names",icon = icon("file-signature"),
+    tabPanel("Modify & add annotations",icon = icon("file-signature"),
              
              br(),
 
              fluidRow(
                
                conditionalPanel(condition = "!output.dimredoutput",
-                                h3("Please upload a feather file with clustering results!")
+                                h3("Please upload a folder with processed files with clustering results!")
                ),
                
-               column(4,
-                      uiOutput("choices_clusterings_rename")),
-                      
-               column(4,
+               column(6,align="center",
                       conditionalPanel(condition = "output.dimredoutput",
-                      textInput(inputId = "user_clustering_name", 
-                                label = "How do you want to label this clustering solution?",
+                      textInput(inputId = "user_added_cluster", 
+                                label = "Please enter a name for your new annotation?",
                                 value = "")
                       )),
                
-               column(4,
+               column(6,align="center",
                       conditionalPanel(condition = "output.dimredoutput",
-                                       actionButton("start_clustering_solution", "Start renaming clusters!"),
-                                       br(),
-                                       verbatimTextOutput("print_cluster_names")
+                                       actionButton("add_annotation", "Add new annotation!"),
+                                       br()
                       ))
              ),
              
@@ -224,14 +186,13 @@ shinyUI(
                
                column(6,
                       conditionalPanel(condition = "output.rename_selected == 'assigned_clusters' && output.dimredoutput",
-                                       p("This panel let's you rename clusters based on previously assigned clusters by the clustering
-                                         algorithm you used. This works best if you think the cluster assigned are valid and you 
-                                         want to give them meaningful names!")),
+                                       p("This panel let's you rename clusters based on previously assigned groups of cell 
+                                         clusters!")),
                       
                       conditionalPanel(condition = "output.rename_selected == 'gene_expression' && output.dimredoutput",
                                        p("This panel let's you rename cell clusters based on gene expression thresholds.
                                          This can be a powerful way of classifying cells into clusters of shared expression
-                                         profiles based on known markers and expertise. Currently only supports 1 threshold!"))
+                                         profiles based on known markers. Currently supports up to 2 markers!"))
                       )
                
              ),
@@ -267,14 +228,21 @@ shinyUI(
                       br(),
                       h4(textOutput("cells_exp_selected"))
                       ),
-               column(4,
-                      p(""))
                
-             )
+               column(4,
+                      conditionalPanel(condition = "output.rename_selected == 'assigned_clusters'",
+                                       textInput("new_cluster_annotation", label = "Enter new cluster annotation!", 10)
+                      ),
+                      
+                      conditionalPanel(condition = "output.rename_selected == 'assigned_clusters'",
+                                       actionButton("save_new_annotation", "Save new annotation label!")
+                                       )
+                      )
              
              # 
              # verbatimTextOutput("brush")
 
+             )
     )
                      
 

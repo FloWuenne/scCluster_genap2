@@ -30,17 +30,17 @@ shinyServer(function(input, output, session) {
   shinyDirChoose(input, "file_dir", 
                  roots = volumes, 
                  session = session, 
-                 defaultRoot = default_home,
-                 defaultPath = default_path,
+                 #defaultRoot = default_home,
+                 #defaultPath = default_path,
                  restrictions = system.file(package = "base"))
   
   ## Get the location of the selected folder as a reactive variable
   file_dir_path <- reactive({
     req(input$file_dir)
     # (#home)
-    this_path <- parseDirPath(c("Home" = paste(fs::path_home(),default_path,sep="/")), input$file_dir)
+    #this_path <- parseDirPath(c("Home" = paste(fs::path_home(),default_path,sep="/")), input$file_dir)
     ## Path for work machine (#work)
-    #this_path <- parseDirPath(c("Home" = paste(fs::path_home(),sep="/")), input$file_dir)
+    this_path <- parseDirPath(c("Home" = paste(fs::path_home(),sep="/")), input$file_dir)
     return(this_path)
   })
   
@@ -56,14 +56,9 @@ shinyServer(function(input, output, session) {
   
   ## path to the uploaded feather file
   dimred_path <- reactive({
-    if(input$upload_method == "Individual_Files"){
-      req(input$feather_file)
-      dimred_file <- parseFilePaths(volumes, input$feather_file)$datapath
-    }else if(input$upload_method == "Folder"){
       req(file_dir_path())
       dimred_file <- paste(file_dir_path(),"/","shiny_clustering_file.feather",sep="")
-    }
-    
+
     return(dimred_file)
   })
   
@@ -73,11 +68,20 @@ shinyServer(function(input, output, session) {
   
   dimred <- reactive({
     req(dimred_path())
+    # req(user_clusterings_from_file())
+    req(input$annotations_to_plot)
+    
     ## Read in clustering data
     dimred <- feather::read_feather(dimred_path(),
-                                    columns = c("tSNE_1","tSNE_2","cell_classification","nGene","nUMI"))
+                                    columns = c("tSNE_1","tSNE_2","nGene","nUMI"))
     dimred <- dimred %>%
       mutate("cell_id" = paste("cl_",rownames(dimred)))
+    
+    selected_annotation <- all_annotations()[,input$annotations_to_plot]
+    
+   # annotation_column <- user_clusterings_from_file()$get(selected_annotation)
+    dimred <- cbind(dimred,selected_annotation)
+    
     return(dimred)
   })
   
@@ -98,13 +102,10 @@ shinyServer(function(input, output, session) {
   
   ## path to the uploaded feather file
   gene_names_path <- reactive({
-    if(input$upload_method == "Individual_Files"){
-      req(input$gene_names)
-      gene_names_path <- parseFilePaths(volumes, input$gene_names)$datapath
-    }else if(input$upload_method == "Folder"){
-      req(file_dir_path())
-      gene_names_path <- paste(file_dir_path(),"/","shiny_gene_names.tsv",sep="")
-  }
+
+    req(file_dir_path())
+    gene_names_path <- paste(file_dir_path(),"/","shiny_gene_names.tsv",sep="")
+
     return(gene_names_path)
   })
   
@@ -125,13 +126,8 @@ shinyServer(function(input, output, session) {
   
   ## path to the uploaded feather file
   marker_genes_path <- reactive({
-    if(input$upload_method == "Individual_Files"){
-      req(input$marker_genes)
-      marker_genes_path <- parseFilePaths(volumes, input$marker_genes)$datapath
-      }else if(input$upload_method == "Folder"){
-        req(file_dir_path())
-        marker_genes_path <- paste(file_dir_path(),"/","shiny_marker_table.tsv",sep="")
-  }
+    req(file_dir_path())
+    marker_genes_path <- paste(file_dir_path(),"/","shiny_marker_table.tsv",sep="")
     return(marker_genes_path)
   })
   
@@ -158,13 +154,8 @@ shinyServer(function(input, output, session) {
 
   ## path to the uploaded feather file
   user_cluster_path <- reactive({
-    if(input$upload_method == "Individual_Files"){
-      req(input$user_cluster_file)
-      user_cluster_path <- parseFilePaths(volumes, input$user_cluster_file)$datapath
-    }else if(input$upload_method == "Folder"){
-      req(file_dir_path())
-      user_cluster_path <- paste(file_dir_path(),"/","shiny_user_clustering.feather",sep="")
-    }
+    req(file_dir_path())
+    user_cluster_path <- paste(file_dir_path(),"/","shiny_user_clustering.feather",sep="")
     return(user_cluster_path)
   })
 
@@ -174,6 +165,13 @@ shinyServer(function(input, output, session) {
     user_cluster_labels <- feather::read_feather(user_cluster_path())
     return(user_cluster_labels)
   })
+  
+  ## Reactive output for enabling conditionalPanel based on file input
+  output$user_cluster_labels <- reactive({
+    return(user_clusterings_from_file())
+  })
+  
+  outputOptions(output, 'user_cluster_labels', suspendWhenHidden = FALSE)
   
   
   ## Check that the gene exists in the data
@@ -185,7 +183,7 @@ shinyServer(function(input, output, session) {
   dimred_exp <- reactive({
     
     req(dimred())
-    
+
     validate(
       need(user_gene() %in% gene_names_df()$genes,
            message = "Please enter a valid gene name")
@@ -203,7 +201,7 @@ shinyServer(function(input, output, session) {
     
     req(dimred())
     
-    n_clusters <- length(unique(dimred()$cell_classification))
+    n_clusters <- length(unique(dimred()[,input$annotations_to_plot]))
     
     if(n_clusters <= 9){
     colors <- brewer.pal(name = "Set1",n = n_clusters)
@@ -218,6 +216,7 @@ shinyServer(function(input, output, session) {
   output$dimred_plot_plotly <- renderPlotly({
 
     req(dimred())
+    req(input$annotations_to_plot)
     
     dimred_plot <- plot_ly(dimred(),
                          x = ~tSNE_1,
@@ -229,7 +228,7 @@ shinyServer(function(input, output, session) {
                          # text = ~paste('nGene: ', nGene, '\n',
                          #               'nUMI: ', nUMI),
                          marker = list(size = input$point_size),
-                         color = ~cell_classification,
+                         color = ~get(input$annotations_to_plot),
                          colors = discrete_color_palette()) 
     
     return(dimred_plot)
@@ -275,19 +274,29 @@ shinyServer(function(input, output, session) {
     
     req(dimred_exp())
     req(user_gene())
+    req(input$annotations_to_plot)
+    
+    x <- list(
+      title = "Cluster"
+    )
+    y <- list(
+      title = "Normalized expression"
+    )
     
     vln_plot <- plot_ly(dimred_exp(),
-            x = ~cell_classification,
+            x = ~get(input$annotations_to_plot),
             y = ~get(user_gene()),
-            color = ~cell_classification,
+            color = ~get(input$annotations_to_plot),
             type = 'violin',
             box = list(
               visible = T),
             meanline = list(
               visible = T),
             colors = discrete_color_palette()
-    )
+    ) %>%
+      layout(xaxis = x, yaxis = y)
     
+     
     return(vln_plot)
   })
   
@@ -307,12 +316,12 @@ shinyServer(function(input, output, session) {
     
     ## If user wants to relabel assigned clusters
     if(input$rename_method == "assigned_clusters"){
-      req(dimred())
-      cell_classes <- unique(dimred()$cell_classification)
+      req(all_annotations())
+      annotations <- all_annotations()
+      cell_classes <- unique(annotations[,input$annotations_to_plot])
       selectInput(inputId = "rename_cluster_highlight",
                   choices = cell_classes,
-                  label="Select cell cluster to relabel!",
-                  selected = cell_classes[1])
+                  label="Select cell cluster to relabel!")
     
       ## if user wants to label cells based on gene expression
     }else if(input$rename_method == "gene_expression"){
@@ -345,11 +354,11 @@ shinyServer(function(input, output, session) {
     req(input$rename_cluster_highlight)
     
     dimred_plot <- ggplot(dimred(),aes(tSNE_1,tSNE_2)) +
-      geom_point(data = subset(dimred(),cell_classification != input$rename_cluster_highlight),
+      geom_point(data = subset(dimred(),get(input$annotations_to_plot) != input$rename_cluster_highlight),
                  colour = "darkgrey",
                  size = 3,
                  alpha  = 0.75) +
-      geom_point(data = subset(dimred(),cell_classification == input$rename_cluster_highlight),
+      geom_point(data = subset(dimred(),get(input$annotations_to_plot) == input$rename_cluster_highlight),
                  colour = "red",
                  size = 3,
                  alpha  = 1) +
@@ -426,11 +435,20 @@ shinyServer(function(input, output, session) {
     return(dimred_plot)
   })
   
+  cells_selected_rename <- reactive({
+    if(input$rename_method == "assigned_clusters"){
+      req(dimred())
+      cells <- subset(dimred(),get(input$annotations_to_plot) == input$rename_cluster_highlight)
+      cells <- cells$cell_id
+    }
+      return(cells)
+  })
+  
   ## Print how many cells have been selected by the respective method
   output$cells_exp_selected <-  renderText({
     if(input$rename_method == "assigned_clusters"){
       req(dimred())
-      cells <- subset(dimred(),cell_classification == input$rename_cluster_highlight)
+      cells <- subset(dimred(),get(input$annotations_to_plot) == get(input$annotations_to_plot))
       cells <- cells$cell_id
       print(paste("You have selected:",length(cells),"cells in the current assigned cluster.",sep=" "))
     }else if(input$rename_method == "gene_expression"){
@@ -472,90 +490,105 @@ shinyServer(function(input, output, session) {
   
   #### Controls for renaming clusters
   
-  ## Get a list of all existing cluster namings
-  all_clusterings <- reactive({
-    colname_clusterings <- colnames(user_clusterings_from_file())
-    return(colname_clusterings)
+  ## Create reactive value to store annotations
+  all_annotations <- reactiveVal()
+  
+  ## Variable to hold the last selected annotation
+  last_selected_annotation <- reactiveVal()
+  
+  ## Add annotations once file with initial annotations gets uploaded
+  observeEvent(user_clusterings_from_file(),{
+    all_annotations(user_clusterings_from_file())
+    last_selected_annotation(colnames(user_clusterings_from_file())[1])
   })
+  
+  ## Add a new annotation whenever the user wants. The clusterings in this annotation will be based on the
+  ## currently selected annotation
+  observeEvent(input$add_annotation,{
+    last_selected_annotation(input$annotations_to_plot)
+    
+    current_annotations <- all_annotations()
+    
+    ## Make new column name based on user input
+    clustering_name <- input$user_added_cluster
+    if(clustering_name == ""){
+      ## If user doesn't enter name, generate new name automatically
+      clustering_name <- paste("user_annotation",ncol(current_annotations)+1,sep="4")
+    }else{
+      clustering_name <- clustering_name
+    }
+    
+    ## Add new column to annotations
+    current_annotations[,clustering_name] <- current_annotations[,input$annotations_to_plot][[1]]
+    all_annotations(current_annotations)
+  })
+  
+  observeEvent(input$save_new_annotation,{
+    last_selected_annotation(input$annotations_to_plot)
+    
+    current_annotations <- all_annotations()
+    current_column <- input$annotations_to_plot
+    current_annotations[,current_column] <- gsub(input$rename_cluster_highlight,
+                                                 input$new_cluster_annotation,
+                                                 current_annotations[,input$annotations_to_plot][[1]])
+    all_annotations(current_annotations)
+  })
+  
+  ## List of available clustering solutions
+  output$available_cluster_labels <- renderUI({
+    
+    req(all_annotations())
+    req(last_selected_annotation)
 
-  observeEvent(input$start_clustering_solution, {
-    all_clusterings <- c(isolate(all_clusterings()), isolate(user_clustering_name()))
+      ## Check if the user has created other clusterings
+      selectInput(inputId = "annotations_to_plot", 
+                  label = "Which annotations do you want to use?",
+                  choices = colnames(all_annotations()),
+                  selected = last_selected_annotation()[[1]])
+    
+  })
+  
+  output$selected_annotation <- renderText({
+    req(input$annotations_to_plot)
+    
+    return(input$annotations_to_plot)
+    
   })
   
   ## List of available clustering solutions
   output$choices_clusterings_rename <- renderUI({
 
-    req(all_clusterings())
+    req(all_annotations())
 
     ## Check if the user has created other clusterings
     selectInput(inputId = "clustering_to_rename", 
                 label = "Which clustering do you want to rename?",
-                choices = colnames(all_clusterings()))
+                choices = colnames(all_annotations()))
 
-  })
-  
-  ##
-  update_all_clusterings <- reactive({
-    
-    req(user_clustering_name())
-    
-    ## if this is the first time the user clicks the button
-    if(){
-      updated_clusters <- c(all_clusterings(),user_clustering_name())
-    }else{
-      
-    }
-
-
-    return(updated_clusters)
-  })
-  
-  # Can also set the label and select items
-  observe({
-    req(update_all_clusterings())
-    
-    updateSelectInput(session, "clustering_to_rename",
-                      label = "Which clustering do you want to rename?",
-                      choices = update_all_clusterings()
-    )
   })
 
   
-  ## When user cliks to start renaming solution, create new cluster set
-  ## reactive value holding the state of a clustering file as well as the new cluster name
-  user_clustering_name <- eventReactive(input$start_clustering_solution ,{
-    ## Check if user loaded cluster labels file
-    clustering_name <- input$user_clustering_name
-    if(clustering_name == ""){
-      ## If user doesn't enter name, generate new name automatically
-      clustering_name <- paste("new_clustering",ncol(user_clusterings_from_file())+1)
-    }else{
-      clustering_name <- clustering_name
-    }
-    return(clustering_name)
-  })
-  
-  current_cluster_names <- reactive({
-    ## Requires the feather file that holds the clustering solutions
-    req(user_clusterings_from_file())
-    req(input$clustering_to_rename)
-    req(user_clustering_name())
-    
-    cluster_colname <- input$clustering_to_rename
-    
-    cluster_names <- user_clusterings_from_file()[[cluster_colname]]
-    
-    return(cluster_names)
-  })
-  
-  
-  output$print_cluster_names <- renderText({
-    return(unique(current_cluster_names()))
-  })
-
-  
-  
-  
+  # 
+  # ##
+  # update_all_annotations <- reactive({
+  #   
+  #   req(user_clustering_name())
+  #   
+  #   updated_clusters <- c(all_annotations(),user_clustering_name())
+  #   
+  #   return(updated_clusters)
+  # })
+  # 
+  # # Can also set the label and select items
+  # observe({
+  #   req(update_all_annotations())
+  #   
+  #   updateSelectInput(session, "clustering_to_rename",
+  #                     label = "Which clustering do you want to rename?",
+  #                     choices = update_all_annotations()
+  #   )
+  # })
+  # 
   
 
   
@@ -573,15 +606,15 @@ shinyServer(function(input, output, session) {
     
     req(dimred())
     
-    tsne_plot <- ggplot(dimred(),aes(tSNE_1,tSNE_2,fill = cell_classification)) +
+    tsne_plot <- ggplot(dimred(),aes(tSNE_1,tSNE_2,fill = get(input$annotations_to_plot))) +
       geom_point(size = input$point_size,
                  shape = 21,
                  alpha = 0.75,
                  colour = "black") 
     
-    if(length(unique(dimred()$cell_classification)) <= 8){
+    if(length(unique(dimred()[,input$annotations_to_plot])) <= 8){
       tsne_plot <- tsne_plot + scale_fill_brewer(palette = "Set2") 
-    }else if(length(unique(dimred()$cell_classification)) <= 12){
+    }else if(length(unique(dimred()[,input$annotations_to_plot])) <= 12){
       tsne_plot <- tsne_plot + scale_fill_brewer(palette = "Set2") 
     }
     
@@ -640,7 +673,7 @@ shinyServer(function(input, output, session) {
       
       req(dimred_exp())
       
-      vln_plot <- ggplot(dimred_exp(),aes(cell_classification,get(user_gene()),fill=cell_classification)) +
+      vln_plot <- ggplot(dimred_exp(),aes(get(input$annotations_to_plot),get(user_gene()),fill=get(input$annotations_to_plot))) +
         geom_violin() +
 
         labs(x="Cell cluster",
@@ -648,9 +681,9 @@ shinyServer(function(input, output, session) {
              title = user_gene()) + 
         theme(legend.position = "none")
       
-      if(length(unique(dimred_exp()$cell_classification)) <= 8){
+      if(length(unique(dimred_exp()[,input$annotations_to_plot])) <= 8){
         vln_plot <- vln_plot + scale_fill_brewer(palette = "Set2") 
-      }else if(length(unique(dimred_exp()$cell_classification)) <= 12){
+      }else if(length(unique(dimred_exp()[,input$annotations_to_plot])) <= 12){
         vln_plot <- vln_plot + scale_fill_brewer(palette = "Set2") 
       }
       
