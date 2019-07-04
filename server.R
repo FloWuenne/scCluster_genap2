@@ -18,6 +18,18 @@ library(shinyFiles)
 # Define server logic required to draw a histogram
 shinyServer(function(input, output, session) {
   
+  
+  output$genap_logo <- renderImage({
+
+    # Return a list containing the filename
+    list(src = "./img/GenAP_powered_reg.png",
+         contentType = 'image/png',
+         width = "100%",
+         height = "100%",
+         alt = "This is alternate text")
+  }, deleteFile = FALSE)
+  
+  
   ## Volumes for testing
   volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
   default_path <- 'Postdoc/Genap/data'
@@ -68,7 +80,6 @@ shinyServer(function(input, output, session) {
   
   dimred <- reactive({
     req(dimred_path())
-    # req(user_clusterings_from_file())
     req(input$annotations_to_plot)
     
     ## Read in clustering data
@@ -78,8 +89,6 @@ shinyServer(function(input, output, session) {
       mutate("cell_id" = paste("cl_",rownames(dimred)))
     
     selected_annotation <- all_annotations()[,input$annotations_to_plot]
-    
-   # annotation_column <- user_clusterings_from_file()$get(selected_annotation)
     dimred <- cbind(dimred,selected_annotation)
     
     return(dimred)
@@ -311,6 +320,21 @@ shinyServer(function(input, output, session) {
       formatStyle(columns = c(3:9), 'text-align' = 'centers')
   })
   
+  
+  gene_names_selection <- reactive({
+    req(gene_names_df())
+    
+    gene_names_selection <- unique(gene_names_df()$genes)
+    
+    updateSelectizeInput(session, 'gene_renaming', 
+                         choices = gene_names_selection, 
+                         server = TRUE,
+                         selected = NULL)
+  })
+  
+
+
+  
   ## Renaming 
   output$rename_list <- renderUI({
     
@@ -325,18 +349,17 @@ shinyServer(function(input, output, session) {
     
       ## if user wants to label cells based on gene expression
     }else if(input$rename_method == "gene_expression"){
-      req(gene_names_df())
+      req(gene_names_selection())
       
-      textInput("genes_renaming", label = "Enter Genesymbol", "GAPDH")
+      selectizeInput(
+        inputId = 'gene_renaming', 
+        label = 'Select the genes to plot', 
+        choices = NULL , multiple = FALSE)
       
       }else if(input$rename_method == "cell_selection"){
         req(gene_names_df())
         req(dimred_exp())
-        selectizeInput(inputId = "cells_selected", 
-                       label = "Which genes would you like to use to select cells? (single-gene or comma separated list!", 
-                       choices = gene_names_df()$genes[1:5], 
-                       selected = NULL, multiple = FALSE,
-                       options = NULL)
+
       }
     })
   
@@ -387,28 +410,24 @@ shinyServer(function(input, output, session) {
     }
   })
   
-  user_genes_renaming_list <- eventReactive(input$gene_rename_button ,{
-    ## Check that the gene exists in the data
-    gene_vector <- unlist(strsplit(input$genes_renaming,split=","))
-    return(gene_vector)
-  })
   
   ## dimensional reduction with genes to plot for expression relabeling
-  dimred_exp_rename <- reactive({
+  dimred_exp_rename <- eventReactive(req(input$gene_rename_button),{
     req(dimred())
-    req(user_genes_renaming_list())
+    req(input$gene_renaming)
+    req(input$gene_rename_button)
     
     validate(
-      need(user_genes_renaming_list() %in% gene_names_df()$genes,
+      need(input$gene_renaming %in% gene_names_df()$genes,
            message = "Please enter a valid gene name")
     )
     
     gene_exp <- feather::read_feather(dimred_path(),
-                                      columns = c(user_genes_renaming_list()))
+                                      columns = c(input$gene_renaming))
     
     dimred_exp_df  <- cbind(dimred(),gene_exp)
     dimred_exp_df <- dimred_exp_df %>%
-      gather("gene","expression",user_genes_renaming_list())
+      gather("gene","expression",input$gene_renaming)
     
     return(dimred_exp_df)
   })
@@ -416,21 +435,22 @@ shinyServer(function(input, output, session) {
   ## ggplot object to highlight genes to rename clusters
   output$dimred_plot_rename_expression <- renderPlot({
     req(dimred_exp_rename())
-    req(user_genes_renaming_list())
+    req(input$gene_renaming)
     req(input$gene_thresh_selected)
+  
     
     dimred_plot <- ggplot(dimred_exp_rename(),aes(tSNE_1,tSNE_2)) +
       geom_point(data = subset(dimred_exp_rename(),expression < as.numeric(input$gene_thresh_selected)),
                  colour = "darkgrey",
                  size = 3,
-                 alpha  = 0.75) +
+                 alpha  = 0.5) +
       geom_point(data = subset(dimred_exp_rename(),expression >= as.numeric(input$gene_thresh_selected)),
                  colour = "red",
                  size = 3,
-                 alpha  = 1) +
+                 alpha  = 0.75) +
       labs(x = "Dimension 1",
            y = "Dimension 2",
-           title = paste("Genes:",user_genes_renaming_list()))
+           title = paste("Genes:",input$gene_renaming))
     
     return(dimred_plot)
   })
@@ -452,25 +472,30 @@ shinyServer(function(input, output, session) {
       cells <- cells$cell_id
       print(paste("You have selected:",length(cells),"cells in the current assigned cluster.",sep=" "))
     }else if(input$rename_method == "gene_expression"){
-      req(input$gene_thresh_selected)
-      req(user_genes_renaming_list())
-      cells <- subset(dimred_exp_rename(),expression >= as.numeric(input$gene_thresh_selected))
-      cells <- cells$cell_id
-    print(paste("You have selected:",length(cells),"cells based on the expression of ",length(user_genes_renaming_list()),"genes.",sep=" "))
+      
+      req(input$gene_renaming)
+      
+      all_cells_expressing  <- subset(dimred_exp_rename(),
+                                      expression >= input$gene_thresh_selected)
+      
+      all_cells_expressing <- unique(all_cells_expressing$cell_id)
+      print(paste("You have selected:",length(all_cells_expressing),"cells based on the expression of ",input$gene_renaming,sep=" "))
     }
   }) 
   
   ## ggplot object to highlight genes to rename clusters
-  output$rename_expression_hist <- renderPlot({
+  output$rename_expression_dens <- renderPlot({
     req(dimred_exp_rename())
-    req(user_genes_renaming_list())
+    req(input$gene_renaming)
     req(input$gene_thresh_selected)
     
     dimred_exp_hist <- ggplot(dimred_exp_rename(),aes(expression)) +
-      geom_density(color = "darkgrey") +
+      geom_density(fill = "red") +
       geom_vline(xintercept = as.numeric(input$gene_thresh_selected),
                  col = "red", linetype = 2) +
-      scale_x_continuous(breaks = round(seq(min(dimred_exp_rename()$expression), max(dimred_exp_rename()$expression), by = 1),1))
+      scale_x_continuous(breaks = round(seq(min(dimred_exp_rename()$expression), max(dimred_exp_rename()$expression), by = 1),1)) +
+      labs(x = "Normalized expression",
+           y = "Density")
     
     return(dimred_exp_hist)
   })
@@ -526,12 +551,40 @@ shinyServer(function(input, output, session) {
   observeEvent(input$save_new_annotation,{
     last_selected_annotation(input$annotations_to_plot)
     
-    current_annotations <- all_annotations()
-    current_column <- input$annotations_to_plot
-    current_annotations[,current_column] <- gsub(input$rename_cluster_highlight,
-                                                 input$new_cluster_annotation,
-                                                 current_annotations[,input$annotations_to_plot][[1]])
-    all_annotations(current_annotations)
+    ## If user is renaming clusters, substitute the existing cluster name with a new one
+    if(input$rename_method == "assigned_clusters"){
+      current_annotations <- all_annotations()
+      current_column <- input$annotations_to_plot
+      current_annotations[,current_column] <- gsub(input$rename_cluster_highlight,
+                                                   input$new_cluster_annotation,
+                                                   current_annotations[,input$annotations_to_plot][[1]])
+      all_annotations(current_annotations)
+      
+    ## If user is renaming cells based on gene expression, mutate using if else
+    } else if(input$rename_method == "gene_expression"){
+      req(dimred_exp_rename())
+      ## Get cells that pass the gene expression threshold
+      cells_to_rename <- dimred_exp_rename() %>%
+        subset(expression >= as.numeric(input$gene_thresh_selected))
+      cells_to_rename <- cells_to_rename$cell_id
+      
+      current_annotations <- all_annotations()
+
+      current_annotations <- current_annotations %>%
+        mutate("new_anno" = get(input$annotations_to_plot)) %>%
+        mutate("new_anno" = if_else(cell_id %in% cells_to_rename,
+                                input$new_cluster_annotation,
+                                as.character(new_anno)))
+      
+      current_annotations[,input$annotations_to_plot] <- current_annotations[,"new_anno"]
+      current_annotations$new_anno <- NULL
+      all_annotations(current_annotations)
+    }
+
+  })
+  
+  output$test <- renderTable({
+    all_annotations()
   })
   
   ## List of available clustering solutions
@@ -543,7 +596,7 @@ shinyServer(function(input, output, session) {
       ## Check if the user has created other clusterings
       selectInput(inputId = "annotations_to_plot", 
                   label = "Which annotations do you want to use?",
-                  choices = colnames(all_annotations()),
+                  choices = colnames(all_annotations()[,-1]),
                   selected = last_selected_annotation()[[1]])
     
   })
@@ -566,29 +619,19 @@ shinyServer(function(input, output, session) {
                 choices = colnames(all_annotations()))
 
   })
-
   
-  # 
-  # ##
-  # update_all_annotations <- reactive({
-  #   
-  #   req(user_clustering_name())
-  #   
-  #   updated_clusters <- c(all_annotations(),user_clustering_name())
-  #   
-  #   return(updated_clusters)
-  # })
-  # 
-  # # Can also set the label and select items
-  # observe({
-  #   req(update_all_annotations())
-  #   
-  #   updateSelectInput(session, "clustering_to_rename",
-  #                     label = "Which clustering do you want to rename?",
-  #                     choices = update_all_annotations()
-  #   )
-  # })
-  # 
+  output$cluster_anno_text <- renderUI({
+    req(dimred())
+    textInput("new_cluster_annotation", label = "Enter new cluster annotation!", 10)
+  })
+  
+  
+  output$save_anno_button <- renderUI({
+    req(dimred())
+    actionButton("save_new_annotation", "Save new annotation label!")
+  })
+
+ 
   
 
   

@@ -6,13 +6,21 @@ library(shinythemes)
 library(shinyWidgets)
 library(plotly)
 library(shinyFiles)
+library(shinydashboard)
 
 ## Define how much RAM R should ask for for caching
 options(shiny.maxRequestSize = 10000*1024^2)
 
 # Define UI for application that draws a histogram
 shinyUI(
+  
   fluidPage(theme = shinytheme("readable"),
+            
+            tags$head(tags$style(
+              type="text/css",
+              "#image img {max-width: 100%; width: auto; height: auto}"
+            )),
+            
             
             ## include css stylesheet
             #includeCSS("styles.css"),
@@ -27,14 +35,23 @@ shinyUI(
             
             fluidRow(style = "background-color:#C2C5CC;",align="center",
                      br(),
-                     column(6,align="center",
+                     column(4,align="center",
                             conditionalPanel(condition = "output.user_cluster_labels",
                                       uiOutput("available_cluster_labels"))
                             ),
-                     column(6,align="center",
+                     column(4,align="center",
                             conditionalPanel(condition = "output.user_cluster_labels",
-                                             textOutput("selected_annotation"))
+                                             icon("book","fa-3x",  lib = "font-awesome"))
+                     ),
+                     column(4,align="center",
+                            conditionalPanel(condition = "output.user_cluster_labels",
+                                             p("You are currently using the following annotation:")
+                                             ),
+                            conditionalPanel(condition = "output.user_cluster_labels",
+                                             h4(textOutput("selected_annotation"))
+                                             )
                             ),
+
                      br()
                      ),
             
@@ -43,27 +60,29 @@ shinyUI(
   tabsetPanel(
     
     tabPanel("Data upload", icon = icon("file-upload"),
+
+             br(),
+             br(),
+             
+             fluidRow(
+               column(12, align="center",
+                      h1("Upload files"),
+                      
+                      shinyDirButton("file_dir", "Folder select", "Please select a folder"),
+                      
+                      verbatimTextOutput("test_path")
+                      )
+               ), 
              
              fluidRow(
                
                hr(),
                
                column(12, align="center",
-                      h2("Add image for pipeline here!")
-                      )
-             ),
-             
-             hr(),
-             
-             fluidRow(
-               column(12, align="center",
-                      h3("File directory"),
-                      
-                      shinyDirButton("file_dir", "Folder select", "Please select a folder"),
-                      
-                      verbatimTextOutput("test_path")
-                      )
+                      imageOutput("genap_logo")
+                      #img(src='GenAP_powered_reg.png', align = "center")
                )
+             )
 
 
     ),
@@ -152,14 +171,14 @@ shinyUI(
                                 h3("Please upload a folder with processed files with clustering results!")
                ),
                
-               column(6,align="center",
+               column(4,
                       conditionalPanel(condition = "output.dimredoutput",
                       textInput(inputId = "user_added_cluster", 
                                 label = "Please enter a name for your new annotation?",
                                 value = "")
                       )),
                
-               column(6,align="center",
+               column(4,
                       conditionalPanel(condition = "output.dimredoutput",
                                        actionButton("add_annotation", "Add new annotation!"),
                                        br()
@@ -213,7 +232,7 @@ shinyUI(
                       ),
                       
                       conditionalPanel("output.rename_selected == 'gene_expression'",
-                                       plotOutput("rename_expression_hist", height = "200px")
+                                       plotOutput("rename_expression_dens", height = "200px")
                       )
 
                       ),
@@ -222,23 +241,22 @@ shinyUI(
                       uiOutput("rename_list"),
                       
                       uiOutput("gene_exp_threshold"),
-                      
+                    
                       uiOutput("plot_gene_rename_button"),
                       br(),
                       br(),
-                      h4(textOutput("cells_exp_selected"))
+                      h4(textOutput("cells_exp_selected")),
+                      
+                      tableOutput("test")
                       ),
                
                column(4,
-                      conditionalPanel(condition = "output.rename_selected == 'assigned_clusters'",
-                                       textInput("new_cluster_annotation", label = "Enter new cluster annotation!", 10)
-                      ),
-                      
-                      conditionalPanel(condition = "output.rename_selected == 'assigned_clusters'",
-                                       actionButton("save_new_annotation", "Save new annotation label!")
-                                       )
+                      uiOutput("cluster_anno_text"),
+                      br(),
+                      uiOutput("save_anno_button")
                       )
-             
+      
+            
              # 
              # verbatimTextOutput("brush")
 
