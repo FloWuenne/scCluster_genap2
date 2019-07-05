@@ -14,6 +14,7 @@ library(plotly)
 library(RColorBrewer)
 library(cowplot)
 library(shinyFiles)
+library(shinyalert)
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output, session) {
@@ -54,6 +55,10 @@ shinyServer(function(input, output, session) {
     ## Path for work machine (#work)
     this_path <- parseDirPath(c("Home" = paste(fs::path_home(),sep="/")), input$file_dir)
     return(this_path)
+  })
+  
+  output$test_file_dir <- renderText({
+    return(paste(input$file_dir[[1]],sep=""))
   })
   
   
@@ -387,7 +392,7 @@ shinyServer(function(input, output, session) {
                  alpha  = 1) +
       labs(x = "Dimension 1",
            y = "Dimension 2",
-           title = paste("Original cluster:",input$rename_cluster_highlight))
+           title = paste("Cluster:",input$rename_cluster_highlight))
     
     return(dimred_plot)
   })
@@ -490,20 +495,14 @@ shinyServer(function(input, output, session) {
     req(input$gene_thresh_selected)
     
     dimred_exp_hist <- ggplot(dimred_exp_rename(),aes(expression)) +
-      geom_density(fill = "red") +
+      geom_density(fill = "red", alpha = 0.5) +
       geom_vline(xintercept = as.numeric(input$gene_thresh_selected),
-                 col = "red", linetype = 2) +
+                 col = "black", linetype = 2) +
       scale_x_continuous(breaks = round(seq(min(dimred_exp_rename()$expression), max(dimred_exp_rename()$expression), by = 1),1)) +
       labs(x = "Normalized expression",
            y = "Density")
     
     return(dimred_exp_hist)
-  })
-  
-  output$brush <- renderPrint({
-    req(output$dimred_plot_plotly)
-    d <- event_data("plotly_selected")
-    if (!is.null(d)) d
   })
   
   output$new_cell_labels <- renderUI({
@@ -548,6 +547,17 @@ shinyServer(function(input, output, session) {
     all_annotations(current_annotations)
   })
   
+  ## Delete currently selected annotation
+  observeEvent(input$delete_annotation,{
+    current_annotations <- all_annotations()
+    column_names <- colnames(current_annotations)
+    remaining_column <- setdiff(column_names,input$annotations_to_plot)
+    current_annotations <- current_annotations[,remaining_column]
+    all_annotations(current_annotations)
+  })
+  
+  ## Rename clusters in a user selected annotation. The way this is done depends on which methods the user
+  ## chooses
   observeEvent(input$save_new_annotation,{
     last_selected_annotation(input$annotations_to_plot)
     
@@ -579,9 +589,25 @@ shinyServer(function(input, output, session) {
       current_annotations[,input$annotations_to_plot] <- current_annotations[,"new_anno"]
       current_annotations$new_anno <- NULL
       all_annotations(current_annotations)
+    } else if(input$rename_method == "cell_selection"){
+      req(dimred())
+      last_selected_annotation(input$annotations_to_plot)
+      current_annotations <- all_annotations()
+      cells_selected <- event_data("plotly_selected")$key
+      
+      current_annotations <- current_annotations %>%
+        mutate("new_anno" = get(input$annotations_to_plot)) %>%
+        mutate("new_anno" = if_else(cell_id %in% cells_selected,
+                                    input$new_cluster_annotation,
+                                    as.character(new_anno)))
+      
+      current_annotations[,input$annotations_to_plot] <- current_annotations[,"new_anno"]
+      current_annotations$new_anno <- NULL
+      all_annotations(current_annotations)
     }
 
   })
+
   
   output$test <- renderTable({
     all_annotations()
@@ -630,12 +656,66 @@ shinyServer(function(input, output, session) {
     req(dimred())
     actionButton("save_new_annotation", "Save new annotation label!")
   })
+  
+  observeEvent(input$store_annotations_perm,{
+    write_feather(all_annotations(),
+                    path <- paste(file_dir_path(),"/","shiny_user_clustering.feather",sep=""))
+    # Show a modal when the button is pressed
+    shinyalert("Success!", "Your annotations were saved", type = "success")
+  })
 
- 
+  output$cell_selection_plot <- renderPlotly({
+    
+    req(dimred())
+    req(input$annotations_to_plot)
+  
+    cell_ids <- dimred()$cell_id
+    dimred_plot <- plot_ly(dimred(),
+                           x = ~tSNE_1,
+                           y = ~tSNE_2,
+                           key = ~cell_ids,
+                           alpha  = 0.75,
+                           type = "scattergl",
+                           mode = "markers",
+                           hoverinfo = 'none',
+                           # text = ~paste('nGene: ', nGene, '\n',
+                           #               'nUMI: ', nUMI),
+                           marker = list(size = input$point_size),
+                           color = ~get(input$annotations_to_plot),
+                           colors = ) %>%
+      layout(dragmode = "select")
+    
+    return(dimred_plot)
+    
+  })
+  
+  output$brush <- renderPrint({
+    d <- event_data("plotly_selected")
+    if (is.null(d)) "Click and drag events (i.e., select/lasso) appear here (double-click to clear)" else d
+  })
+  
   
 
-  
 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   
   

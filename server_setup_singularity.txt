@@ -49,5 +49,6 @@ devtools::install_github("jlmelville/uwot")
 devtools::install_github("daattali/colourpicker")
 install.packages("sm")
 install.packages("shinyFiles")
+install.packages("shinyalert")
 q()
 
