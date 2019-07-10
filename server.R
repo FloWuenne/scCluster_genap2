@@ -32,8 +32,8 @@ shinyServer(function(input, output, session) {
   
   
   ## Volumes for testing
-  volumes <- c("FTP" = "/ftp",
-               Home = fs::path_home(), 
+  volumes <- c(Home = fs::path_home(), 
+               "FTP" = "/ftp",
                "R Installation" = R.home(), 
                getVolumes()())
   default_path <- 'Postdoc/Genap/data'
