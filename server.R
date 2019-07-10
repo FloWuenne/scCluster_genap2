@@ -326,7 +326,7 @@ shinyServer(function(input, output, session) {
   })
   
   
-  gene_names_selection <- reactive({
+  gene_names_selection <- eventReactive(input$rename_method == "gene_expression",{
     req(gene_names_df())
     
     gene_names_selection <- unique(gene_names_df()$genes)
@@ -361,10 +361,6 @@ shinyServer(function(input, output, session) {
         label = 'Select the genes to plot', 
         choices = NULL , multiple = FALSE)
       
-      }else if(input$rename_method == "cell_selection"){
-        req(gene_names_df())
-        req(dimred_exp())
-
       }
     })
   
@@ -470,12 +466,16 @@ shinyServer(function(input, output, session) {
   })
   
   ## Print how many cells have been selected by the respective method
-  output$cells_exp_selected <-  renderText({
+  output$cells_selected <-  renderText({
     if(input$rename_method == "assigned_clusters"){
+      
       req(dimred())
-      cells <- subset(dimred(),get(input$annotations_to_plot) == get(input$annotations_to_plot))
+      req(input$rename_cluster_highlight)
+      
+      cells <- subset(dimred(),get(input$annotations_to_plot) == input$rename_cluster_highlight)
       cells <- cells$cell_id
       print(paste("You have selected:",length(cells),"cells in the current assigned cluster.",sep=" "))
+      
     }else if(input$rename_method == "gene_expression"){
       
       req(input$gene_renaming)
@@ -485,6 +485,11 @@ shinyServer(function(input, output, session) {
       
       all_cells_expressing <- unique(all_cells_expressing$cell_id)
       print(paste("You have selected:",length(all_cells_expressing),"cells based on the expression of ",input$gene_renaming,sep=" "))
+    } else if(input$rename_method == "cell_selection"){
+      req(event_data("plotly_selected"))
+      cells_selected <- event_data("plotly_selected")$key
+      
+      print(paste("You have selected:",length(cells_selected),"cells!",sep=" "))
     }
   }) 
   
@@ -497,7 +502,7 @@ shinyServer(function(input, output, session) {
     dimred_exp_hist <- ggplot(dimred_exp_rename(),aes(expression)) +
       geom_density(fill = "red", alpha = 0.5) +
       geom_vline(xintercept = as.numeric(input$gene_thresh_selected),
-                 col = "black", linetype = 2) +
+                 col = "black", linetype = 2,size = 1.5) +
       scale_x_continuous(breaks = round(seq(min(dimred_exp_rename()$expression), max(dimred_exp_rename()$expression), by = 1),1)) +
       labs(x = "Normalized expression",
            y = "Density")
@@ -694,8 +699,6 @@ shinyServer(function(input, output, session) {
     if (is.null(d)) "Click and drag events (i.e., select/lasso) appear here (double-click to clear)" else d
   })
   
-  
-
 
   
   
@@ -711,106 +714,96 @@ shinyServer(function(input, output, session) {
   
   
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  ################### old code
-  
-  ## UMAP clustering with cell types
-  output$tsne_plot_cluster <- renderPlot({
-    
-    req(dimred())
-    
-    tsne_plot <- ggplot(dimred(),aes(tSNE_1,tSNE_2,fill = get(input$annotations_to_plot))) +
-      geom_point(size = input$point_size,
-                 shape = 21,
-                 alpha = 0.75,
-                 colour = "black") 
-    
-    if(length(unique(dimred()[,input$annotations_to_plot])) <= 8){
-      tsne_plot <- tsne_plot + scale_fill_brewer(palette = "Set2") 
-    }else if(length(unique(dimred()[,input$annotations_to_plot])) <= 12){
-      tsne_plot <- tsne_plot + scale_fill_brewer(palette = "Set2") 
-    }
-    
-    if(input$show_labels == TRUE){
-      tsne_plot <- tsne_plot +
-        # geom_label_repel(data= cluster_centers, x = cluster_centers[, 2], y = cluster_centers[, 3], label = cluster_centers[,1],
-        #                  fontface = 'bold', color = 'white', point.padding= FALSE,
-        #                  fill = "darkgrey", size = 6, alpha = 0.8) +
-        theme(legend.position = "none")
-      
-    }else{
-      tsne_plot <- tsne_plot +
-        theme(legend.position = "bottom")
-    }
-    
-    return(tsne_plot)
-    
-  })
-    
-  
-    ## Plot cell embeddings plot with gene expression
-    output$tsne_plot_gene_expression <- renderPlot({
-      
-      req(dimred_exp())
-    
-      mapping_expression <- ggplot(dimred_exp(),aes(tSNE_1,tSNE_2)) +
-        geom_point(data = subset(dimred_exp(), get(user_gene()) == 0 | get(user_gene()) < 0),
-                   size = input$point_size,
-                   colour = "grey",
-                   alpha = 0.5) +
-        geom_point(data = subset(dimred_exp(), get(user_gene()) > 0),
-                   aes(colour = get(user_gene())),
-                   size = input$point_size,
-                   alpha = 0.5) +
-        scale_colour_viridis(option=input$dimred_color_palette,
-                             name="Norm. Expr.") +
-        labs(colour = "Norm. Expr.",
-             x = "UMAP1",
-             y = "UMAP1",
-             title = user_gene()) +
-        theme(legend.title = element_text(size = 10,face="bold"),
-              legend.key.size= unit(0.8, "cm"),
-              legend.text = element_text(size = 10),
-              axis.title.x = element_text(size =14,colour="black", face="bold"),
-              axis.title.y = element_text(size =14,colour="black", face="bold"),
-              strip.background=element_blank(),
-              strip.text = element_blank(),
-              legend.position = "right") 
-      
-      return(mapping_expression)
-    
-      })
-    
-    
-    output$vlnplot_user_gene <- renderPlot({
-      
-      req(dimred_exp())
-      
-      vln_plot <- ggplot(dimred_exp(),aes(get(input$annotations_to_plot),get(user_gene()),fill=get(input$annotations_to_plot))) +
-        geom_violin() +
-
-        labs(x="Cell cluster",
-             y = "Normalized Expression",
-             title = user_gene()) + 
-        theme(legend.position = "none")
-      
-      if(length(unique(dimred_exp()[,input$annotations_to_plot])) <= 8){
-        vln_plot <- vln_plot + scale_fill_brewer(palette = "Set2") 
-      }else if(length(unique(dimred_exp()[,input$annotations_to_plot])) <= 12){
-        vln_plot <- vln_plot + scale_fill_brewer(palette = "Set2") 
-      }
-      
-      return(vln_plot)
-    })
-    
+  # 
+  # ################### old code
+  # 
+  # ## UMAP clustering with cell types
+  # output$tsne_plot_cluster <- renderPlot({
+  #   
+  #   req(dimred())
+  #   
+  #   tsne_plot <- ggplot(dimred(),aes(tSNE_1,tSNE_2,fill = get(input$annotations_to_plot))) +
+  #     geom_point(size = input$point_size,
+  #                shape = 21,
+  #                alpha = 0.75,
+  #                colour = "black") 
+  #   
+  #   if(length(unique(dimred()[,input$annotations_to_plot])) <= 8){
+  #     tsne_plot <- tsne_plot + scale_fill_brewer(palette = "Set2") 
+  #   }else if(length(unique(dimred()[,input$annotations_to_plot])) <= 12){
+  #     tsne_plot <- tsne_plot + scale_fill_brewer(palette = "Set2") 
+  #   }
+  #   
+  #   if(input$show_labels == TRUE){
+  #     tsne_plot <- tsne_plot +
+  #       # geom_label_repel(data= cluster_centers, x = cluster_centers[, 2], y = cluster_centers[, 3], label = cluster_centers[,1],
+  #       #                  fontface = 'bold', color = 'white', point.padding= FALSE,
+  #       #                  fill = "darkgrey", size = 6, alpha = 0.8) +
+  #       theme(legend.position = "none")
+  #     
+  #   }else{
+  #     tsne_plot <- tsne_plot +
+  #       theme(legend.position = "bottom")
+  #   }
+  #   
+  #   return(tsne_plot)
+  #   
+  # })
+  #   
+  # 
+  #   ## Plot cell embeddings plot with gene expression
+  #   output$tsne_plot_gene_expression <- renderPlot({
+  #     
+  #     req(dimred_exp())
+  #   
+  #     mapping_expression <- ggplot(dimred_exp(),aes(tSNE_1,tSNE_2)) +
+  #       geom_point(data = subset(dimred_exp(), get(user_gene()) == 0 | get(user_gene()) < 0),
+  #                  size = input$point_size,
+  #                  colour = "grey",
+  #                  alpha = 0.5) +
+  #       geom_point(data = subset(dimred_exp(), get(user_gene()) > 0),
+  #                  aes(colour = get(user_gene())),
+  #                  size = input$point_size,
+  #                  alpha = 0.5) +
+  #       scale_colour_viridis(option=input$dimred_color_palette,
+  #                            name="Norm. Expr.") +
+  #       labs(colour = "Norm. Expr.",
+  #            x = "UMAP1",
+  #            y = "UMAP1",
+  #            title = user_gene()) +
+  #       theme(legend.title = element_text(size = 10,face="bold"),
+  #             legend.key.size= unit(0.8, "cm"),
+  #             legend.text = element_text(size = 10),
+  #             axis.title.x = element_text(size =14,colour="black", face="bold"),
+  #             axis.title.y = element_text(size =14,colour="black", face="bold"),
+  #             strip.background=element_blank(),
+  #             strip.text = element_blank(),
+  #             legend.position = "right") 
+  #     
+  #     return(mapping_expression)
+  #   
+  #     })
+  #   
+  #   
+  #   output$vlnplot_user_gene <- renderPlot({
+  #     
+  #     req(dimred_exp())
+  #     
+  #     vln_plot <- ggplot(dimred_exp(),aes(get(input$annotations_to_plot),get(user_gene()),fill=get(input$annotations_to_plot))) +
+  #       geom_violin() +
+  # 
+  #       labs(x="Cell cluster",
+  #            y = "Normalized Expression",
+  #            title = user_gene()) + 
+  #       theme(legend.position = "none")
+  #     
+  #     if(length(unique(dimred_exp()[,input$annotations_to_plot])) <= 8){
+  #       vln_plot <- vln_plot + scale_fill_brewer(palette = "Set2") 
+  #     }else if(length(unique(dimred_exp()[,input$annotations_to_plot])) <= 12){
+  #       vln_plot <- vln_plot + scale_fill_brewer(palette = "Set2") 
+  #     }
+  #     
+  #     return(vln_plot)
+  #   })
+  #   
 })

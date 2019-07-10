@@ -125,7 +125,7 @@ shinyUI(
              
              ## Show this text only when no feather file has been uploaded
              conditionalPanel(condition = "!output.dimredoutput",
-                              h3("Please upload a feather file with clustering results!")
+                              h3("Please upload a processed dataset!")
              ),
              
              fluidRow(
@@ -157,19 +157,6 @@ shinyUI(
         
       ),
     
-    ## Table with marker genes
-    tabPanel("Marker genes",icon = icon("highlighter"),
-             
-             ## Show this text only when no marker table has been uploaded!
-             conditionalPanel(condition = "!output.marker_genes_table_out",
-                              h3("Please upload a marker gene table!")
-             ),
-             
-             conditionalPanel(condition = "output.marker_genes_table_out",
-                              dataTableOutput("table_marker_genes")
-             )
-            ),
-    
     ## Panel for renaming clusters
     tabPanel("Modify & add annotations",icon = icon("file-signature"),
              
@@ -178,7 +165,7 @@ shinyUI(
              fluidRow(
                
                conditionalPanel(condition = "!output.dimredoutput",
-                                h3("Please upload a folder with processed files with clustering results!")
+                                h3("Please upload a processed dataset!")
                ),
                
                column(3,align = "center",
@@ -282,9 +269,7 @@ shinyUI(
                       uiOutput("plot_gene_rename_button"),
                       br(),
                       br(),
-                      h4(textOutput("cells_exp_selected")),
-                      
-                      tableOutput("test")
+                      h4(textOutput("cells_selected"))
                       ),
                
                column(4,
@@ -292,13 +277,22 @@ shinyUI(
                       br(),
                       uiOutput("save_anno_button")
                       )
-      
-            
-             # 
-             # verbatimTextOutput("brush")
-
+             )
+    ),
+    
+    ## Table with marker genes
+    tabPanel("Marker genes",icon = icon("highlighter"),
+             
+             ## Show this text only when no marker table has been uploaded!
+             conditionalPanel(condition = "!output.marker_genes_table_out",
+                              h3("Please upload a processed dataset with marker gene results!")
+             ),
+             
+             conditionalPanel(condition = "output.marker_genes_table_out",
+                              dataTableOutput("table_marker_genes")
              )
     )
+    
                      
 
     
