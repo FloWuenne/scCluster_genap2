@@ -31,7 +31,7 @@ shinyUI(
             id = "main_page",
             
             # Application title
-            h1("Visualize and analyse your scRNA-seq clustering results",
+            h1("Visualize and annotate your scRNA-seq clustering results",
                        windowTitle = "scRNA-seq clustering"),
             
             hr(),
