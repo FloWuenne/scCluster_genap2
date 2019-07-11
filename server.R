@@ -93,9 +93,7 @@ shinyServer(function(input, output, session) {
     ## Read in clustering data
     dimred <- feather::read_feather(dimred_path(),
                                     columns = c("tSNE_1","tSNE_2","nGene","nUMI"))
-    dimred <- dimred %>%
-      mutate("cell_id" = paste("cl_",rownames(dimred)))
-    
+
     selected_annotation <- all_annotations()[,input$annotations_to_plot]
     dimred <- cbind(dimred,selected_annotation)
     
