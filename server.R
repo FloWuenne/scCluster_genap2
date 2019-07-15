@@ -337,7 +337,8 @@ shinyServer(function(input, output, session) {
       row <- paste("Warning, matrix has",nrow(dimred_genes),"and there are:",
                    length(selected_annotation),"mismatch!",sep="")
       
-      presto_results <- data.frame("warning" = row)
+      presto_results <- data.frame("warning" = row,
+                                   "anno_head" = selected_annotation[1])
     }
 
     return(presto_results)
