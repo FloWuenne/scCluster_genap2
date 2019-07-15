@@ -312,7 +312,9 @@ shinyUI(
              ## Show this text only when no marker table has been uploaded!
              p("This panel lets you recalculate marker genes using the",
                       a(href="https://github.com/immunogenomics/presto", target="_blank", "Presto package"),
-                "Thanks to presto, we can recalculate markers on the fly. Depending on the size of your dataset, this can take up to 10 seconds!"
+                "Thanks to presto, we can recalculate markers on the fly. Depending on the size of your dataset, this can take up to 10 seconds!
+               Note that only the top 500 marker genes based on the AUC value per cluster annotation are shown here
+               for reactivity and speed reasons!"
                 )
                )
              ),

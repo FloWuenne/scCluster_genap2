@@ -355,7 +355,9 @@ shinyServer(function(input, output, session) {
       if(ncol(dimred_genes) == length(selected_annotation[[1]])){
         #presto_results <- wilcoxauc(as(t(dimred_genes), "sparseMatrix"),selected_annotation[[1]])
         presto_results <- wilcoxauc(dimred_genes,selected_annotation[[1]])
-        presto_results <- subset(presto_results,auc >= 0.5)
+        presto_results <- presto_results %>%
+          subset(auc >= 0.5) %>%
+          top_n(500,wt = auc)
         
         # Increment the progress bar, and update the detail text.
         incProgress(0.8, detail = paste("Presto run finished!"))
@@ -382,7 +384,8 @@ shinyServer(function(input, output, session) {
     datatable(marker <- presto_marker_genes(),
               caption = 'Table 1: Presto Marker genes for selected annotation',
               filter = 'top',
-              selection = 'single') %>%
+              selection = 'single',
+              rownames= FALSE) %>%
       formatRound(digits = c(2), columns = c(3:10)) %>%
       formatStyle(columns = c(1:10), 'text-align' = 'centers')
   })
