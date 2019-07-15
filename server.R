@@ -15,6 +15,7 @@ library(RColorBrewer)
 library(cowplot)
 library(shinyFiles)
 library(shinyalert)
+library(presto)
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output, session) {
@@ -91,8 +92,9 @@ shinyServer(function(input, output, session) {
     req(input$annotations_to_plot)
     
     ## Read in clustering data
-    dimred <- feather::read_feather(dimred_path(),
-                                    columns = c("tSNE_1","tSNE_2","nGene","nUMI","cell_id"))
+    dimred <- feather::read_feather(dimred_path())
+                                    # columns = c("tSNE_1","tSNE_2","nGene","nUMI","cell_id")
+                                    # )
 
     selected_annotation <- all_annotations()[,input$annotations_to_plot]
     dimred <- cbind(dimred,selected_annotation)
@@ -204,10 +206,11 @@ shinyServer(function(input, output, session) {
            message = "Please enter a valid gene name")
     )
     
-    gene_exp <- feather::read_feather(dimred_path(),
-                                      columns = c(user_gene()))
+    # gene_exp <- feather::read_feather(dimred_path(),
+    #                                   columns = c(user_gene()))
+    #dimred_exp_df  <- cbind(dimred(),gene_exp)
     
-    dimred_exp_df  <- cbind(dimred(),gene_exp)
+    dimred_exp-df <- dimred()
     return(dimred_exp_df)
   }) 
 
@@ -314,15 +317,48 @@ shinyServer(function(input, output, session) {
      
     return(vln_plot)
   })
+
+  
+  presto_marker_genes <- eventReactive(input$calc_presto_markers,{
+    
+    #req(dimred_path())
+    req(dimred())
+    req(input$annotations_to_plot)
+    req(gene_names_df())
+    
+    ## Load complete dataset for marker calculation
+    #dimred <- feather::read_feather(dimred_path())
+    #annotation <- dimred$cell_classification
+    dimred_genes <- dimred()[,gene_names_df()$genes]
+    selected_annotation <- all_annotations()[,input$annotations_to_plot]
+    
+    ## Run presto
+    presto_results <- wilcoxauc(t(dimred_genes),selected_annotation)
+    
+    return(presto_results)
+    
+  })
+  
+  output$presto_marker_table <- renderDataTable({
+    datatable(marker <- presto_marker_genes(),
+              caption = 'Table 1: Marker genes for selected annotation',
+              filter = 'top',
+              selection = 'single')
+  })
   
   ## Table with marker genes to select for GeneonTSNEplot
-  output$table_marker_genes <- renderDataTable(
-    {
+  output$table_marker_genes <- renderDataTable({
+      
+    ## Marker genes table calculated with Presto from current data
+    
+    ## expression_matrix
+      
+    # Precomputed marker genes table
     datatable(marker <- marker_genes_table(),
               caption = 'Table 1: Marker genes for all cell classifications',
               filter = 'top',
               selection = 'single') %>%
-      formatRound(digits = c(2), columns = c(2)) %>% 
+      formatRound(digits = c(2), columns = c(2)) %>%
       formatStyle(columns = c(3:9), 'text-align' = 'centers')
   })
   
