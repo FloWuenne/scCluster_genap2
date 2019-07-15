@@ -210,8 +210,7 @@ shinyServer(function(input, output, session) {
   
   
   ## Check that the gene exists in the data
-  user_gene <- eventReactive(input$plot_gene_button ,{
-    req(genes_exp_selection())
+  user_gene <- eventReactive(input$plot_gene_button,{
     return(input$user_gene_clustering)
   })
   
@@ -219,18 +218,6 @@ shinyServer(function(input, output, session) {
     if(is.null(all_annotations())){
       shinyalert("Error!", "Please upload a dataset first!", type = "error")
     }
-  })
-  
-  genes_exp_selection <- reactive({
-    req(dimred())
-    req(gene_names_df())
-    
-    genes_exp_selection <- unique(gene_names_df()$genes)
-    
-    updateSelectizeInput(session, 'user_gene_clustering', 
-                         choices = genes_exp_selection, 
-                         server = TRUE,
-                         selected = NULL)
   })
   
   ## Loads the expression of the requested gene and adds it to the cell embeddings
