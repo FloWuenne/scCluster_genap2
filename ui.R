@@ -324,7 +324,9 @@ shinyUI(
             fluidRow(
               column(4,
                      actionButton("calc_presto_markers", "Calculate marker genes!")
-              )
+              ),
+              column(4,
+                     downloadButton("download_marker_table", "Download marker table!"))
             ),
 
             br(),

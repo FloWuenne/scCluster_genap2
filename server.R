@@ -329,6 +329,7 @@ shinyServer(function(input, output, session) {
       shinyalert("Error!", "Please upload a dataset first!", type = "error")
     }
   })
+  
 
   presto_marker_genes <- eventReactive(input$calc_presto_markers,{
     
@@ -777,6 +778,22 @@ shinyServer(function(input, output, session) {
     d <- event_data("plotly_selected")
     if (is.null(d)) "Click and drag events (i.e., select/lasso) appear here (double-click to clear)" else d
   })
+  
+  # Downloadable csv of selected dataset ----
+  output$download_marker_table <- downloadHandler(
+    filename = function() {
+      paste(input$file_dir[[1]],"_",input$annotations_to_plot,".tsv", sep = "")
+    },
+    content = function(file) {
+      write.table(presto_marker_genes(), 
+                  file,
+                  row.names = FALSE,
+                  col.names = TRUE,
+                  sep="\t",
+                  quote = FALSE)
+    }
+  )
+  
   
 
   
