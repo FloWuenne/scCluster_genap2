@@ -332,9 +332,9 @@ shinyServer(function(input, output, session) {
     
     ## Run presto
     if(nrow(dimred_genes) == length(selected_annotation)){
-      presto_results <- wilcoxauc(t(dimred_genes),selected_annotation)
+      presto_results <- wilcoxauc(t(dimred_genes),selected_annotation[1])
     }else{
-      row <- paste("Warning, matrix has",nrow(dimred_genes),"and there are:",
+      row <- paste("Warning, matrix has",nrow(dimred_genes),"and annotations have:",
                    length(selected_annotation),"mismatch!",sep="")
       
       presto_results <- data.frame("warning" = row,
