@@ -283,7 +283,7 @@ shinyUI(
     tabPanel("Marker genes",icon = icon("highlighter"),
              
              ## Show this text only when no marker table has been uploaded!
-             conditionalPanel(condition = "!output.marker_genes_table_out",
+             conditionalPanel(condition = "!output.presto_marker_table",
                               h3("Please upload a processed dataset with marker gene results!")
              ),
              

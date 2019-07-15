@@ -325,6 +325,7 @@ shinyServer(function(input, output, session) {
     req(dimred())
     req(input$annotations_to_plot)
     req(gene_names_df())
+    req(all_annotations())
     
     ## Load complete dataset for marker calculation
     #dimred <- feather::read_feather(dimred_path())
