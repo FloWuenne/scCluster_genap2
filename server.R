@@ -92,9 +92,9 @@ shinyServer(function(input, output, session) {
     req(input$annotations_to_plot)
     
     ## Read in clustering data
-    dimred <- feather::read_feather(dimred_path())
-                                    # columns = c("tSNE_1","tSNE_2","nGene","nUMI","cell_id")
-                                    # )
+    dimred <- feather::read_feather(dimred_path(),
+                                    columns = c("tSNE_1","tSNE_2","nGene","nUMI","cell_id")
+                                    )
 
     selected_annotation <- all_annotations()[,input$annotations_to_plot]
     dimred <- cbind(dimred,selected_annotation)
@@ -206,11 +206,10 @@ shinyServer(function(input, output, session) {
            message = "Please enter a valid gene name")
     )
     
-    # gene_exp <- feather::read_feather(dimred_path(),
-    #                                   columns = c(user_gene()))
-    #dimred_exp_df  <- cbind(dimred(),gene_exp)
+    gene_exp <- feather::read_feather(dimred_path(),
+                                      columns = c(user_gene()))
     
-    dimred_exp-df <- dimred()
+    dimred_exp_df  <- cbind(dimred(),gene_exp)
     return(dimred_exp_df)
   }) 
 
@@ -321,16 +320,13 @@ shinyServer(function(input, output, session) {
   
   presto_marker_genes <- eventReactive(input$calc_presto_markers,{
     
-    #req(dimred_path())
-    req(dimred())
+    req(dimred_path())
     req(input$annotations_to_plot)
-    req(gene_names_df())
     req(all_annotations())
     
     ## Load complete dataset for marker calculation
-    #dimred <- feather::read_feather(dimred_path())
-    #annotation <- dimred$cell_classification
-    dimred_genes <- dimred()[,gene_names_df()$genes]
+    dimred <- feather::read_feather(dimred_path())
+    dimred_genes <- dimred[,gene_names_df()$genes]
     selected_annotation <- all_annotations()[,input$annotations_to_plot]
     
     ## Run presto
