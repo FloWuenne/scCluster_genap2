@@ -456,16 +456,7 @@ shinyServer(function(input, output, session) {
     
     return(dimred_plot)
   })
-  
-  cells_selected_rename <- reactive({
-    if(input$rename_method == "assigned_clusters"){
-      req(dimred())
-      cells <- subset(dimred(),get(input$annotations_to_plot) == input$rename_cluster_highlight)
-      cells <- cells$cell_id
-    }
-      return(cells)
-  })
-  
+
   ## Print how many cells have been selected by the respective method
   output$cells_selected <-  renderText({
     if(input$rename_method == "assigned_clusters"){
@@ -614,11 +605,6 @@ shinyServer(function(input, output, session) {
 
   })
 
-  
-  output$test <- renderTable({
-    all_annotations()
-  })
-  
   ## List of available clustering solutions
   output$available_cluster_labels <- renderUI({
     
