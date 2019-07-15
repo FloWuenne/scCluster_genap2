@@ -782,7 +782,7 @@ shinyServer(function(input, output, session) {
   # Downloadable csv of selected dataset ----
   output$download_marker_table <- downloadHandler(
     filename = function() {
-      paste(input$file_dir[[1]],"_",input$annotations_to_plot,".tsv", sep = "")
+      paste(input$annotations_to_plot,".tsv", sep = "")
     },
     content = function(file) {
       write.table(presto_marker_genes(), 
