@@ -50,5 +50,6 @@ devtools::install_github("daattali/colourpicker")
 install.packages("sm")
 install.packages("shinyFiles")
 install.packages("shinyalert")
+install_github('immunogenomics/presto')
 q()
 

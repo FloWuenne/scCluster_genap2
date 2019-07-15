@@ -89,8 +89,7 @@ shinyUI(
                hr(),
                
                column(12, align="center",
-                      imageOutput("genap_logo")
-                      #img(src='GenAP_powered_reg.png', align = "center")
+                      imageOutput("genap_logo", height = "80%")
                )
              )
 
@@ -284,17 +283,22 @@ shinyUI(
     tabPanel("Marker genes",icon = icon("highlighter"),
              
              ## Show this text only when no marker table has been uploaded!
-             conditionalPanel(condition = "!output.marker_genes_table_out",
+             conditionalPanel(condition = "!output.presto_marker_table",
                               h3("Please upload a processed dataset with marker gene results!")
              ),
              
-             conditionalPanel(condition = "output.marker_genes_table_out",
-                              dataTableOutput("table_marker_genes")
-             )
-    )
-    
-                     
+             
+            br(),
+            
+            actionButton("calc_presto_markers", "Calculate marker genes!"),
+             
+            dataTableOutput("presto_marker_table")
 
+            
+             # conditionalPanel(condition = "output.marker_genes_table_out",
+             #                  dataTableOutput("table_marker_genes")
+             
+             )
     
   ) # end of TabsetPanel
   ) # end of fluidPage
