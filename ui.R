@@ -282,16 +282,33 @@ shinyUI(
     ## Table with marker genes
     tabPanel("Marker genes",icon = icon("highlighter"),
              
+             br(),
+             br(),
+             
+             
+             fluidRow(
+               column(12,
              ## Show this text only when no marker table has been uploaded!
-             conditionalPanel(condition = "!output.presto_marker_table",
-                              h3("Please upload a processed dataset with marker gene results!")
+             p("This panel lets you recalculate marker genes using the",
+                      a(href="https://github.com/immunogenomics/presto", target="_blank", "Presto package"),
+                "Thanks to presto, we can recalculate markers on the fly. Depending on the size of your dataset, this can take up to 10 seconds!"
+                )
+               )
              ),
-             
-             
+             hr(),
+
+            br(),
+            br(),
+
+            fluidRow(
+              column(4,
+                     actionButton("calc_presto_markers", "Calculate marker genes!")
+              )
+            ),
+
+            br(),
             br(),
             
-            actionButton("calc_presto_markers", "Calculate marker genes!"),
-             
             dataTableOutput("presto_marker_table")
 
             

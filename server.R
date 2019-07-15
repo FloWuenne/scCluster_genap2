@@ -12,10 +12,14 @@ library(feather)
 library(data.table)
 library(plotly)
 library(RColorBrewer)
-library(cowplot)
 library(shinyFiles)
 library(shinyalert)
+library(Matrix)
 library(presto)
+library(cowplot)
+
+theme_set(  theme_cowplot())
+
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output, session) {
@@ -81,6 +85,13 @@ shinyServer(function(input, output, session) {
       dimred_file <- paste(file_dir_path(),"/","shiny_clustering_file.feather",sep="")
 
     return(dimred_file)
+  })
+  
+  ## path to the uploaded feather file
+  presto_path <- reactive({
+    req(file_dir_path())
+    presto_file <- paste(file_dir_path(),"/","shiny_user_clustering.sparse_presto.rds",sep="")
+    return(presto_file)
   })
   
   output$test_path <- renderPrint({
@@ -194,6 +205,12 @@ shinyServer(function(input, output, session) {
   ## Check that the gene exists in the data
   user_gene <- eventReactive(input$plot_gene_button ,{
     return(input$user_gene_clustering)
+  })
+  
+  user_gene_alert <- observeEvent(input$plot_gene_button, {
+    if(is.null(all_annotations())){
+      shinyalert("Error!", "Please upload a dataset first!", type = "error")
+    }
   })
   
   ## Loads the expression of the requested gene and adds it to the cell embeddings
@@ -316,30 +333,54 @@ shinyServer(function(input, output, session) {
      
     return(vln_plot)
   })
-
   
+  presto_alert <- observeEvent(input$calc_presto_markers, {
+    if(is.null(all_annotations())){
+      shinyalert("Error!", "Please upload a dataset first!", type = "error")
+    }
+  })
+
   presto_marker_genes <- eventReactive(input$calc_presto_markers,{
     
-    req(dimred_path())
+    req(presto_path())
     req(input$annotations_to_plot)
     req(all_annotations())
     
-    ## Load complete dataset for marker calculation
-    dimred <- feather::read_feather(dimred_path())
-    dimred_genes <- dimred[,gene_names_df()$genes]
-    annotations <- all_annotations()
-    selected_annotation <- annotations[,input$annotations_to_plot]
-    
-    ## Run presto
-    if(nrow(dimred_genes) == length(selected_annotation[1])){
-      presto_results <- wilcoxauc(t(dimred_genes),selected_annotation[1])
-    }else{
-      row <- paste("Warning, matrix has",nrow(dimred_genes),"and annotations have:",
-                   length(selected_annotation),"mismatch!",sep="")
+    withProgress(message = 'Calculating Markers...', value = 0, {
       
-      presto_results <- data.frame("warning" = row,
-                                   "anno_head" = selected_annotation[1])
-    }
+      ## Load complete dataset for marker calculation
+      #dimred <- feather::read_feather(dimred_path())
+      dimred_genes <- readRDS(presto_path())
+      
+      # Increment the progress bar, and update the detail text.
+      incProgress(0.5, detail = paste("Done reading full expression matrix..."))
+      
+      ## Subset complete matrix to only contain genes
+      # dimred_genes <- dimred[,gene_names_df()$genes]
+      annotations <- all_annotations()
+      selected_annotation <- annotations[,input$annotations_to_plot]
+      
+      ## Run presto (if annotation length matches matrix size)
+      if(ncol(dimred_genes) == length(selected_annotation[[1]])){
+        #presto_results <- wilcoxauc(as(t(dimred_genes), "sparseMatrix"),selected_annotation[[1]])
+        presto_results <- wilcoxauc(dimred_genes,selected_annotation[[1]])
+        
+        # Increment the progress bar, and update the detail text.
+        incProgress(0.8, detail = paste("Presto run finished!"))
+        
+      }else{
+        row <- paste("Warning, matrix has",nrow(dimred_genes),"and annotations have:",
+                     length(selected_annotation),"mismatch!",sep="")
+        
+        presto_results <- data.frame("warning" = row,
+                                     "anno_head" = selected_annotation[1])
+      }
+    
+    
+    # Increment the progress bar, and update the detail text.
+    incProgress(1, detail = paste("Marker calculation done!"))
+    
+    })
 
     return(presto_results)
     
@@ -347,26 +388,27 @@ shinyServer(function(input, output, session) {
   
   output$presto_marker_table <- renderDataTable({
     datatable(marker <- presto_marker_genes(),
-              caption = 'Table 1: Marker genes for selected annotation',
-              filter = 'top',
-              selection = 'single')
-  })
-  
-  ## Table with marker genes to select for GeneonTSNEplot
-  output$table_marker_genes <- renderDataTable({
-      
-    ## Marker genes table calculated with Presto from current data
-    
-    ## expression_matrix
-      
-    # Precomputed marker genes table
-    datatable(marker <- marker_genes_table(),
-              caption = 'Table 1: Marker genes for all cell classifications',
+              caption = 'Table 1: Presto Marker genes for selected annotation',
               filter = 'top',
               selection = 'single') %>%
-      formatRound(digits = c(2), columns = c(2)) %>%
-      formatStyle(columns = c(3:9), 'text-align' = 'centers')
+      formatRound(digits = c(2), columns = c(3:10)) %>%
+      formatStyle(columns = c(1:10), 'text-align' = 'centers')
   })
+  
+  ## old table for marker genes precalculated from Seurat or Scanpy
+  # ## Table with marker genes to select for GeneonTSNEplot
+  # output$table_marker_genes <- renderDataTable({
+  #     
+  #   ## expression_matrix
+  #     
+  #   # Precomputed marker genes table
+  #   datatable(marker <- marker_genes_table(),
+  #             caption = 'Table 1: Marker genes for all cell classifications',
+  #             filter = 'top',
+  #             selection = 'single') %>%
+  #     formatRound(digits = c(2), columns = c(2)) %>%
+  #     formatStyle(columns = c(3:9), 'text-align' = 'centers')
+  # })
   
   
   gene_names_selection <- eventReactive(input$rename_method == "gene_expression",{
@@ -390,7 +432,7 @@ shinyServer(function(input, output, session) {
     if(input$rename_method == "assigned_clusters"){
       req(all_annotations())
       annotations <- all_annotations()
-      cell_classes <- unique(annotations[,input$annotations_to_plot])
+      cell_classes <- unique(annotations[,input$annotations_to_plot][[1]])
       selectInput(inputId = "rename_cluster_highlight",
                   choices = cell_classes,
                   label="Select cell cluster to relabel!")
@@ -494,7 +536,7 @@ shinyServer(function(input, output, session) {
                  alpha  = 0.75) +
       labs(x = "Dimension 1",
            y = "Dimension 2",
-           title = paste("Genes:",input$gene_renaming))
+           title = paste("Gene:",input$gene_renaming),sep=" ")
     
     return(dimred_plot)
   })
@@ -533,13 +575,15 @@ shinyServer(function(input, output, session) {
     req(input$gene_renaming)
     req(input$gene_thresh_selected)
     
-    dimred_exp_hist <- ggplot(dimred_exp_rename(),aes(expression)) +
-      geom_density(fill = "red", alpha = 0.5) +
+    dimred_exp <- dimred_exp_rename()
+    
+    dimred_exp_hist <- ggplot(dimred_exp,aes(expression)) +
+      geom_density(fill = "red", alpha = 1) +
       geom_vline(xintercept = as.numeric(input$gene_thresh_selected),
                  col = "black", linetype = 2,size = 1.5) +
-      scale_x_continuous(breaks = round(seq(min(dimred_exp_rename()$expression), max(dimred_exp_rename()$expression), by = 1),1)) +
+      scale_x_continuous(breaks = round(seq(min(dimred_exp$expression), max(dimred_exp$expression), by = 1),1)) +
       labs(x = "Normalized expression",
-           y = "Density")
+           y = "Density") 
     
     return(dimred_exp_hist)
   })
@@ -606,7 +650,7 @@ shinyServer(function(input, output, session) {
       current_column <- input$annotations_to_plot
       current_annotations[,current_column] <- gsub(input$rename_cluster_highlight,
                                                    input$new_cluster_annotation,
-                                                   current_annotations[,input$annotations_to_plot][[1]])
+                                                   current_annotations[,current_column][[1]])
       all_annotations(current_annotations)
       
     ## If user is renaming cells based on gene expression, mutate using if else
