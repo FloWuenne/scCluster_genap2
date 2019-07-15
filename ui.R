@@ -42,7 +42,7 @@ shinyUI(
                             conditionalPanel(condition = "output.user_cluster_labels",
                                              icon("book","fa-3x",  lib = "font-awesome"))
                      ),
-                    column(3,align="left",
+                    column(4,align="center",
                            conditionalPanel(condition = "output.user_cluster_labels",
                                             p("Current dataset:")
                                             ),
@@ -50,11 +50,11 @@ shinyUI(
                                             h4(textOutput("test_file_dir"))
                            )
                            ) ,
-                     column(3,align="left",
+                     column(4,align="center",
                             conditionalPanel(condition = "output.user_cluster_labels",
                                       uiOutput("available_cluster_labels"))
                             ),
-                     column(3,align="left",
+                     column(3,align="center",
                             conditionalPanel(condition = "output.user_cluster_labels",
                                              p("You are currently using the following annotation:")
                                              ),
@@ -77,9 +77,9 @@ shinyUI(
              
              fluidRow(
                column(12, align="center",
-                      h1("Upload files"),
+                      h1("Upload dataset"),
                       
-                      shinyDirButton("file_dir", "Folder select", "Please select a folder")
+                      shinyDirButton("file_dir", "Choose a dataset!", "Please select a dataset!")
                     
                       )
                ), 
@@ -160,12 +160,33 @@ shinyUI(
     tabPanel("Modify & add annotations",icon = icon("file-signature"),
              
              br(),
+             
+             fluidRow(
+               column(6,align = "left",
+                      p("This panel allows you to add annotations to you clustering. You can add a new
+                        annotation column, you can delete existing columns and you can save annotations
+                        for future use. When you create a new annotation column, the labels of the currently
+                        selected annotation will initally be copied.")
+                      ),
+               column(6,align = "left",
+                      p("You can group cells into clusters
+                        using a combination of 3 different methods:
+                        1) rename existing clusters
+                        2) assign cells based on expression threshold of candidate genes
+                        3) manually select a group of cells that you want to assign a cluster")
+                      )
+             ),
 
              fluidRow(
-               
-               conditionalPanel(condition = "!output.dimredoutput",
-                                h3("Please upload a processed dataset!")
-               ),
+               column(12,
+                      conditionalPanel(condition = "!output.dimredoutput",
+                                       h3("Please upload a processed dataset!")
+                                       )
+                      )
+             ),
+             br(),
+             
+             fluidRow(
                
                column(3,align = "center",
                       conditionalPanel(condition = "output.dimredoutput",

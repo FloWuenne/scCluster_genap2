@@ -20,10 +20,21 @@ library(cowplot)
 
 theme_set(  theme_cowplot())
 
-
 # Define server logic required to draw a histogram
 shinyServer(function(input, output, session) {
   
+  color_palette <- reactive({
+    
+    n_annotations <- length(unique(all_annotations()[,input$annotations_to_plot][[1]]))
+    
+    if(n_annotations <= 20){
+    colors <- c("#3ABFEF", "#E877BB", "#C61E8E", "#EF2E25", "#7958A5", "#AC6EAE", "#CD9CC8", "#533F89",
+                               "#D1B38B", "#676867", "#A5D171","#81A568", "#098040", "#3953A5", "#FFD03F", "#EF6507", "#6479F2",
+                               "#438AC9", "#FFA63F", "#DB91C8")
+    }else{
+    colors <- "Set1"
+    }
+  })
   
   output$genap_logo <- renderImage({
 
@@ -92,10 +103,6 @@ shinyServer(function(input, output, session) {
     req(file_dir_path())
     presto_file <- paste(file_dir_path(),"/","shiny_user_clustering.sparse_presto.rds",sep="")
     return(presto_file)
-  })
-  
-  output$test_path <- renderPrint({
-    return(dimred_path())
   })
   
   dimred <- reactive({
@@ -230,27 +237,13 @@ shinyServer(function(input, output, session) {
     return(dimred_exp_df)
   }) 
 
-  ## Determine color palette based number of clusters
-  discrete_color_palette <- reactive({
-    
-    req(dimred())
-    
-    n_clusters <- length(unique(dimred()[,input$annotations_to_plot]))
-    
-    if(n_clusters <= 9){
-    colors <- brewer.pal(name = "Set1",n = n_clusters)
-    }else{
-    colors <- c(brewer.pal(name = "Set1",n = 9),brewer.pal(name = "Set2",n = 8))
-    }
-    
-    return(colors)
-  })
   
   ## Plot dimensional reduction plot using plotly
   output$dimred_plot_plotly <- renderPlotly({
 
     req(dimred())
     req(input$annotations_to_plot)
+    req(color_palette())
     
     dimred_plot <- plot_ly(dimred(),
                          x = ~tSNE_1,
@@ -258,12 +251,11 @@ shinyServer(function(input, output, session) {
                          alpha  = 0.75,
                          type = "scattergl",
                          mode = "markers",
-                         hoverinfo = 'none',
-                         # text = ~paste('nGene: ', nGene, '\n',
-                         #               'nUMI: ', nUMI),
+                         hoverinfo = 'text',
+                         text = ~get(input$annotations_to_plot),
                          marker = list(size = input$point_size),
                          color = ~get(input$annotations_to_plot),
-                         colors = discrete_color_palette()) 
+                         colors = color_palette()) 
     
     return(dimred_plot)
   })
@@ -325,9 +317,7 @@ shinyServer(function(input, output, session) {
             box = list(
               visible = T),
             meanline = list(
-              visible = T),
-            colors = discrete_color_palette()
-    ) %>%
+              visible = T)) %>%
       layout(xaxis = x, yaxis = y)
     
      
@@ -364,6 +354,7 @@ shinyServer(function(input, output, session) {
       if(ncol(dimred_genes) == length(selected_annotation[[1]])){
         #presto_results <- wilcoxauc(as(t(dimred_genes), "sparseMatrix"),selected_annotation[[1]])
         presto_results <- wilcoxauc(dimred_genes,selected_annotation[[1]])
+        presto_results <- subset(presto_results,auc >= 0.5)
         
         # Increment the progress bar, and update the detail text.
         incProgress(0.8, detail = paste("Presto run finished!"))
@@ -487,11 +478,13 @@ shinyServer(function(input, output, session) {
   
   output$gene_exp_threshold <- renderUI({
     req(gene_names_df())
+    req(dimred_exp_rename())
+    dimred_exp_rename <- subset(dimred_exp_rename(),expression > 0)
     
     if(input$rename_method == "gene_expression"){
       sliderInput(inputId = "gene_thresh_selected", 
                   label ="Select the gene expression threshold!", 
-                  min = 0, max = 10,
+                  min = round(min(dimred_exp_rename$expression),2), max = round(max(dimred_exp_rename$expression),2),
                   value = 1, step = 0.1)
     }
   })
@@ -576,6 +569,7 @@ shinyServer(function(input, output, session) {
     req(input$gene_thresh_selected)
     
     dimred_exp <- dimred_exp_rename()
+    dimred_exp <- subset(dimred_exp,expression > 0)
     
     dimred_exp_hist <- ggplot(dimred_exp,aes(expression)) +
       geom_density(fill = "red", alpha = 1) +
@@ -583,7 +577,9 @@ shinyServer(function(input, output, session) {
                  col = "black", linetype = 2,size = 1.5) +
       scale_x_continuous(breaks = round(seq(min(dimred_exp$expression), max(dimred_exp$expression), by = 1),1)) +
       labs(x = "Normalized expression",
-           y = "Density") 
+           y = "Density",
+           title= "Expression over all cells",
+           subtitle = "Cells with no expression excluded") 
     
     return(dimred_exp_hist)
   })
@@ -647,10 +643,21 @@ shinyServer(function(input, output, session) {
     ## If user is renaming clusters, substitute the existing cluster name with a new one
     if(input$rename_method == "assigned_clusters"){
       current_annotations <- all_annotations()
-      current_column <- input$annotations_to_plot
-      current_annotations[,current_column] <- gsub(input$rename_cluster_highlight,
-                                                   input$new_cluster_annotation,
-                                                   current_annotations[,current_column][[1]])
+      
+      cells_to_rename <-subset(current_annotations,get(input$annotations_to_plot) == input$rename_cluster_highlight)
+      
+      current_annotations <- current_annotations %>%
+        mutate("new_anno" = get(input$annotations_to_plot)) %>%
+        mutate("new_anno" = if_else(get(input$annotations_to_plot) == input$rename_cluster_highlight,
+                                    input$new_cluster_annotation,
+                                    as.character(new_anno)))
+      
+      current_annotations[,input$annotations_to_plot] <- current_annotations[,"new_anno"]
+      current_annotations$new_anno <- NULL
+      
+      # current_annotations[,] <- gsub(input$rename_cluster_highlight,
+      #                                              input$new_cluster_annotation,
+      #                                              current_annotations[,current_column][[1]])
       all_annotations(current_annotations)
       
     ## If user is renaming cells based on gene expression, mutate using if else
@@ -755,15 +762,14 @@ shinyServer(function(input, output, session) {
                            alpha  = 0.75,
                            type = "scattergl",
                            mode = "markers",
-                           hoverinfo = 'none',
-                           # text = ~paste('nGene: ', nGene, '\n',
-                           #               'nUMI: ', nUMI),
+                           hoverinfo = 'text',
+                           text = ~get(input$annotations_to_plot),
                            marker = list(size = input$point_size),
                            color = ~get(input$annotations_to_plot),
-                           colors = ) %>%
+                           colors = color_palette()) %>%
       layout(dragmode = "select")
     
-    return(dimred_plot)
+    dimred_plot
     
   })
   
