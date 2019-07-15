@@ -115,7 +115,8 @@ shinyUI(
                                   min = 2, max = 10, value = 6, step = 2, round = TRUE) ),
                
                column(width= 4,
-                      textInput("user_gene_clustering", label = "Enter Genesymbol", "GAPDH"),
+                      selectizeInput(inputId = "user_gene_clustering", label = "Enter Genesymbol",
+                                     choices = NULL , multiple = FALSE),
                       actionButton("plot_gene_button", "Plot gene!") )
                ),
                  
@@ -188,7 +189,7 @@ shinyUI(
              
              fluidRow(
                
-               column(3,align = "center",
+               column(3,align = "left",
                       conditionalPanel(condition = "output.dimredoutput",
                       h4(textInput(inputId = "user_added_cluster", width = "100%",
                                 label = "Enter a name for your new annotation:",
@@ -196,7 +197,7 @@ shinyUI(
                       )
                       ),
                
-               column(3,align = "center",
+               column(3,align = "left",
                       conditionalPanel(condition = "output.dimredoutput",
                                        h4("Add new annotations to your data:")
                       ),
@@ -204,7 +205,7 @@ shinyUI(
                                        actionButton("add_annotation", "Add new annotation!",
                                                     icon = icon("pen"))
                       )),
-               column(3,align = "center",
+               column(3,align = "left",
                       conditionalPanel(condition = "output.dimredoutput",
                                        h4("Delete an annotation from your data:")
                       ),
@@ -212,7 +213,7 @@ shinyUI(
                                        actionButton("delete_annotation", "Delete current annotation!",
                                                     icon = icon("trash"))
                                        )),
-               column(3,align = "center",
+               column(3,align = "left",
                       conditionalPanel(condition = "output.dimredoutput",
                                        h4("Store your annotations for next time:")
                       ),
@@ -227,7 +228,7 @@ shinyUI(
              
              
              fluidRow(
-               column(4,
+               column(4, align = "left",
 
                       conditionalPanel(condition = "output.dimredoutput",
                                        selectInput("rename_method", 
@@ -240,7 +241,7 @@ shinyUI(
                                        )
                       ),
                
-               column(6,
+               column(6,align = "left",
                       conditionalPanel(condition = "output.rename_selected == 'assigned_clusters' && output.dimredoutput",
                                        p("This panel let's you rename clusters based on previously assigned groups of cell 
                                          clusters!")),
@@ -263,7 +264,7 @@ shinyUI(
              
              ## Reactive panels that change based on how the user wants to rename clusters
              fluidRow(
-               column(4,
+               column(4, align = "left",
                       conditionalPanel("output.rename_selected == 'assigned_clusters'",
                                        plotOutput("dimred_plot_rename_assigned_clusters")
                                        ),
@@ -281,7 +282,7 @@ shinyUI(
                                        )
                       ),
                
-               column(4,
+               column(4, align = "left",
                       uiOutput("rename_list"),
                       
                       uiOutput("gene_exp_threshold"),
@@ -292,7 +293,7 @@ shinyUI(
                       h4(textOutput("cells_selected"))
                       ),
                
-               column(4,
+               column(4, align = "left",
                       uiOutput("cluster_anno_text"),
                       br(),
                       uiOutput("save_anno_button")
