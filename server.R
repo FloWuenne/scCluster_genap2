@@ -327,10 +327,17 @@ shinyServer(function(input, output, session) {
     ## Load complete dataset for marker calculation
     dimred <- feather::read_feather(dimred_path())
     dimred_genes <- dimred[,gene_names_df()$genes]
-    selected_annotation <- all_annotations()[,input$annotations_to_plot]
+    annotations <- all_annotations()
+    selected_annotation <- annotations[,input$annotations_to_plot]
     
     ## Run presto
-    presto_results <- wilcoxauc(t(dimred_genes),selected_annotation)
+    if(nrow(dimred_genes) == length(selected_annotation)){
+      presto_results <- wilcoxauc(t(dimred_genes),selected_annotation)
+    }else{
+      print(paste("Warning, matrix has",nrow(dimred_genes),"and there are:",
+                  length(selected_annotation),"mismatch!",sep=""))
+    }
+    
     
     return(presto_results)
     
