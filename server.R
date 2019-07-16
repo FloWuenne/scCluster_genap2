@@ -17,6 +17,7 @@ library(shinyalert)
 library(Matrix)
 library(presto)
 library(cowplot)
+library(gtools)
 
 theme_set(  theme_cowplot())
 
@@ -659,6 +660,10 @@ shinyServer(function(input, output, session) {
                                     input$new_cluster_annotation,
                                     as.character(new_anno)))
       
+      ## Keep order of clusters numerical and then alphabetical!
+      current_annotations$new_anno <- factor(current_annotations$new_anno, mixedsort(unique(current_annotations$new_anno)))
+      
+      ## Reput clusterings into the original naming slot
       current_annotations[,input$annotations_to_plot] <- current_annotations[,"new_anno"]
       current_annotations$new_anno <- NULL
       
@@ -683,9 +688,11 @@ shinyServer(function(input, output, session) {
                                 input$new_cluster_annotation,
                                 as.character(new_anno)))
       
+      current_annotations$new_anno <- factor(current_annotations$new_anno, mixedsort(unique(current_annotations$new_anno)))
       current_annotations[,input$annotations_to_plot] <- current_annotations[,"new_anno"]
       current_annotations$new_anno <- NULL
       all_annotations(current_annotations)
+      
     } else if(input$rename_method == "cell_selection"){
       req(dimred())
       last_selected_annotation(input$annotations_to_plot)
@@ -698,6 +705,7 @@ shinyServer(function(input, output, session) {
                                     input$new_cluster_annotation,
                                     as.character(new_anno)))
       
+      current_annotations$new_anno <- factor(current_annotations$new_anno, mixedsort(unique(current_annotations$new_anno)))
       current_annotations[,input$annotations_to_plot] <- current_annotations[,"new_anno"]
       current_annotations$new_anno <- NULL
       all_annotations(current_annotations)
