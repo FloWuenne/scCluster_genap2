@@ -102,7 +102,7 @@ shinyServer(function(input, output, session) {
   ## path to the uploaded feather file
   presto_path <- reactive({
     req(file_dir_path())
-    presto_file <- paste(file_dir_path(),"/","shiny_user_clustering.sparse_presto.rds",sep="")
+    presto_file <- paste(file_dir_path(),"/","shiny_clustering.sparse_presto.rds",sep="")
     return(presto_file)
   })
   
@@ -110,9 +110,13 @@ shinyServer(function(input, output, session) {
     req(dimred_path())
     req(input$annotations_to_plot)
     
+    ## Need to add support for UMAP and split binding of a  nnotations to dimred for only reading feather standard file
+    ## once when annotations change.
+    ## Idea for UMAP: quickly read file that contains parameters?! 
+    
     ## Read in clustering data
     dimred <- feather::read_feather(dimred_path(),
-                                    columns = c("tSNE_1","tSNE_2","nGene","nUMI","cell_id")
+                                    columns = c("tSNE_1","tSNE_2","cell_id")
                                     )
 
     selected_annotation <- all_annotations()[,input$annotations_to_plot]
@@ -150,35 +154,6 @@ shinyServer(function(input, output, session) {
     gene_names_df <- fread(gene_names_path())
     return(gene_names_df)
   })
-  
-  #### 
-  ## Marker list
-  ## gene names file
-  shinyFileChoose(input, "marker_genes", 
-                  roots = volumes,
-                  defaultRoot = default_home, 
-                  defaultPath = default_path,
-                  session = session)
-  
-  ## path to the uploaded feather file
-  marker_genes_path <- reactive({
-    req(file_dir_path())
-    marker_genes_path <- paste(file_dir_path(),"/","shiny_marker_table.tsv",sep="")
-    return(marker_genes_path)
-  })
-  
-  marker_genes_table <-  reactive({
-    req(marker_genes_path())
-    marker_genes_table <- fread(marker_genes_path())
-    return(marker_genes_table)
-  })
-  
-  output$marker_genes_table_out <- reactive({
-    return(marker_genes_table())
-  })
-  
-  outputOptions(output, 'marker_genes_table_out', suspendWhenHidden = FALSE)
-  
 
   ####
   ## User clustering solutions
@@ -331,7 +306,6 @@ shinyServer(function(input, output, session) {
     }
   })
   
-
   presto_marker_genes <- eventReactive(input$calc_presto_markers,{
     
     req(presto_path())
@@ -348,7 +322,7 @@ shinyServer(function(input, output, session) {
       incProgress(0.5, detail = paste("Done reading full expression matrix..."))
       
       ## Subset complete matrix to only contain genes
-      # dimred_genes <- dimred[,gene_names_df()$genes]
+      #dimred_genes <- dimred[,gene_names_df()$genes]
       annotations <- all_annotations()
       selected_annotation <- annotations[,input$annotations_to_plot]
       
@@ -371,7 +345,7 @@ shinyServer(function(input, output, session) {
                      length(selected_annotation),"mismatch!",sep="")
         
         presto_results <- data.frame("warning" = row,
-                                     "anno_head" = selected_annotation[1])
+                                     "anno_head" = selected_annotation[[1]])
       }
     
     
