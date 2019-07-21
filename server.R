@@ -412,8 +412,7 @@ shinyServer(function(input, output, session) {
       selectizeInput(
         inputId = 'gene_renaming', 
         label = 'Select the genes to plot', 
-        choices = NULL , multiple = FALSE,
-        selectize = TRUE)
+        choices = "" , multiple = FALSE)
       
       }
     })
