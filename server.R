@@ -49,15 +49,10 @@ shinyServer(function(input, output, session) {
   
   
   ## Volumes for testing
-  volumes <- c(Home = fs::path_home(), 
-               "FTP" = "/ftp",
-               "R Installation" = R.home(), 
-               getVolumes()())
-  default_path <- 'Postdoc/Genap/data'
-  default_home <- 'Home'
+  volumes <- c("FTP" = "/ftp",
+               Home = fs::path_home())
   
-  ## Volumes for GenAP2 production environment
-  # volumes <- c(FTP = "/ftp")
+  default_home <- 'FTP'
   
   ## File directory
   shinyDirChoose(input, "file_dir", 
@@ -70,10 +65,10 @@ shinyServer(function(input, output, session) {
   ## Get the location of the selected folder as a reactive variable
   file_dir_path <- reactive({
     req(input$file_dir)
-    # (#home)
-    #this_path <- parseDirPath(c("Home" = paste(fs::path_home(),default_path,sep="/")), input$file_dir)
+    this_path <- parseDirPath("/ftp", input$file_dir)
+    
     ## Path for work machine (#work)
-    this_path <- parseDirPath(c("Home" = paste(fs::path_home(),sep="/")), input$file_dir)
+    #this_path <- parseDirPath(c("Home" = paste(fs::path_home(),sep="/")), input$file_dir)
     return(this_path)
   })
   
