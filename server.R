@@ -385,7 +385,7 @@ shinyServer(function(input, output, session) {
     gene_names_selection <- unique(gene_names_df()$genes)
     
     updateSelectizeInput(session, 'gene_renaming', 
-                         choices = gene_names_selection, 
+                         choices = c("Choose"='',gene_names_selection), 
                          server = TRUE,
                          selected = NULL)
   })
@@ -412,8 +412,7 @@ shinyServer(function(input, output, session) {
       selectizeInput(
         inputId = 'gene_renaming', 
         label = 'Select the genes to plot', 
-        choices = "" , multiple = FALSE)
-      
+        choices = NULL , multiple = FALSE)
       }
     })
   
