@@ -65,7 +65,7 @@ shinyServer(function(input, output, session) {
   ## Get the location of the selected folder as a reactive variable
   file_dir_path <- reactive({
     req(input$file_dir)
-    this_path <- parseDirPath("/ftp", input$file_dir)
+    this_path <- parseDirPath(c("FTP" = "/ftp"), input$file_dir)
     
     ## Path for work machine (#work)
     #this_path <- parseDirPath(c("Home" = paste(fs::path_home(),sep="/")), input$file_dir)
@@ -79,11 +79,11 @@ shinyServer(function(input, output, session) {
   
   #### Clustering file
   ## Feather clustering file
-  shinyFileChoose(input, "feather_file", 
-                  roots = volumes,
-                  defaultRoot = default_home, 
-                  defaultPath = default_path,
-                  session = session)
+  # shinyFileChoose(input, "feather_file", 
+  #                 roots = volumes,
+  #                 defaultRoot = default_home, 
+  #                 defaultPath = default_path,
+  #                 session = session)
   
   
   ## path to the uploaded feather file
