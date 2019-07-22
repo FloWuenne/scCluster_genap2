@@ -223,6 +223,8 @@ shinyUI(
              ),
              
              br(),
+             br(),
+             br(),
              hr(),
              
              
@@ -257,6 +259,8 @@ shinyUI(
                ),
 
              
+             br(),
+             br(),
              br(),
              hr(),
              

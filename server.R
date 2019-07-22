@@ -385,7 +385,7 @@ shinyServer(function(input, output, session) {
     gene_names_selection <- unique(gene_names_df()$genes)
     
     updateSelectizeInput(session, 'gene_renaming', 
-                         choices = c("Choose"='',gene_names_selection), 
+                         choices = c("Type your gene"='',gene_names_selection), 
                          server = TRUE,
                          selected = NULL)
   })
