@@ -411,7 +411,7 @@ shinyServer(function(input, output, session) {
     if(input$rename_method == "assigned_clusters"){
       req(all_annotations())
       annotations <- all_annotations()
-      cell_classes <- unique(annotations[,input$annotations_to_plot][[1]])
+      cell_classes <- mixedsort(unique(annotations[,input$annotations_to_plot][[1]]))
       selectInput(inputId = "rename_cluster_highlight",
                   choices = cell_classes,
                   label="Select cell cluster to relabel!")
@@ -617,8 +617,12 @@ shinyServer(function(input, output, session) {
   observeEvent(input$delete_annotation,{
     current_annotations <- all_annotations()
     column_names <- colnames(current_annotations)
-    remaining_column <- setdiff(column_names,input$annotations_to_plot)
-    current_annotations <- current_annotations[,remaining_column]
+    if(input$annotations_to_plot != "cell_classification"){
+      remaining_column <- setdiff(column_names,input$annotations_to_plot)
+      current_annotations <- current_annotations[,remaining_column]
+    }else{
+      shinyalert("STOP!", "You cannot delete the initial annotations!", type = "error")
+    }
     all_annotations(current_annotations)
   })
   
