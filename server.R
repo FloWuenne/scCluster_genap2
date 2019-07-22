@@ -620,7 +620,7 @@ shinyServer(function(input, output, session) {
     if(input$rename_method == "assigned_clusters"){
       current_annotations <- all_annotations()
       
-      cells_to_rename <-subset(current_annotations,get(input$annotations_to_plot) == input$rename_cluster_highlight)
+      cells_to_rename <- subset(current_annotations,get(input$annotations_to_plot) == input$rename_cluster_highlight)
       
       current_annotations <- current_annotations %>%
         mutate("new_anno" = get(input$annotations_to_plot)) %>%
@@ -642,7 +642,6 @@ shinyServer(function(input, output, session) {
       
     ## If user is renaming cells based on gene expression, mutate using if else
     } else if(input$rename_method == "gene_expression"){
-      req(dimred_exp_rename())
       ## Get cells that pass the gene expression threshold
       cells_to_rename <- dimred_exp_rename() %>%
         subset(expression >= as.numeric(input$gene_thresh_selected))
@@ -662,7 +661,6 @@ shinyServer(function(input, output, session) {
       all_annotations(current_annotations)
       
     } else if(input$rename_method == "cell_selection"){
-      req(dimred())
       last_selected_annotation(input$annotations_to_plot)
       current_annotations <- all_annotations()
       cells_selected <- event_data("plotly_selected")$key
