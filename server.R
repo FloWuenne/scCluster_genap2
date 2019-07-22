@@ -645,6 +645,7 @@ shinyServer(function(input, output, session) {
       ## Get cells that pass the gene expression threshold
       cells_to_rename <- dimred_exp_rename() %>%
         subset(expression >= as.numeric(input$gene_thresh_selected))
+      
       cells_to_rename <- cells_to_rename$cell_id
       
       current_annotations <- all_annotations()
@@ -661,7 +662,6 @@ shinyServer(function(input, output, session) {
       all_annotations(current_annotations)
       
     } else if(input$rename_method == "cell_selection"){
-      last_selected_annotation(input$annotations_to_plot)
       current_annotations <- all_annotations()
       cells_selected <- event_data("plotly_selected")$key
       
