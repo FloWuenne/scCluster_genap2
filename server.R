@@ -18,6 +18,7 @@ library(Matrix)
 library(presto)
 library(cowplot)
 library(gtools)
+library(DT)
 
 theme_set(  theme_cowplot())
 
@@ -65,7 +66,8 @@ shinyServer(function(input, output, session) {
   ## Get the location of the selected folder as a reactive variable
   file_dir_path <- reactive({
     req(input$file_dir)
-    this_path <- parseDirPath(c("FTP" = "/ftp"), input$file_dir)
+    this_path <- parseDirPath(volumes, input$file_dir)
+    #this_path <- parseDirPath(c("FTP" = "/ftp"), input$file_dir)
     
     ## Path for work machine (#work)
     #this_path <- parseDirPath(c("Home" = paste(fs::path_home(),sep="/")), input$file_dir)
@@ -332,6 +334,10 @@ shinyServer(function(input, output, session) {
         
         presto_results$group <- as.factor(presto_results$group)
         
+        presto_results <- presto_results %>%
+          group_by(group) %>%
+          arrange(desc(logFC))
+        
         # Increment the progress bar, and update the detail text.
         incProgress(0.8, detail = paste("Presto run finished!"))
         
@@ -354,11 +360,16 @@ shinyServer(function(input, output, session) {
   })
   
   output$presto_marker_table <- renderDataTable({
-    datatable(marker <- presto_marker_genes(),
+    DT::datatable(marker <- presto_marker_genes(),
               caption = 'Table 1: Presto Marker genes for selected annotation',
               filter = 'top',
               selection = 'single',
-              rownames= FALSE) %>%
+              rownames= FALSE,
+              extensions = 'Scroller', options = list(
+                deferRender = TRUE,
+                scrollY = 500,
+                scroller = TRUE
+              )) %>%
       formatRound(digits = c(2), columns = c(3:11)) %>%
       formatStyle(columns = c(1:11), 'text-align' = 'centers')
   })
@@ -642,6 +653,7 @@ shinyServer(function(input, output, session) {
       
     ## If user is renaming cells based on gene expression, mutate using if else
     } else if(input$rename_method == "gene_expression"){
+      req(dimred_exp_rename())
       ## Get cells that pass the gene expression threshold
       cells_to_rename <- dimred_exp_rename() %>%
         subset(expression >= as.numeric(input$gene_thresh_selected))
@@ -662,6 +674,7 @@ shinyServer(function(input, output, session) {
       all_annotations(current_annotations)
       
     } else if(input$rename_method == "cell_selection"){
+      req(dimred())
       current_annotations <- all_annotations()
       cells_selected <- event_data("plotly_selected")$key
       
