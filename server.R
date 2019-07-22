@@ -48,7 +48,6 @@ shinyServer(function(input, output, session) {
          alt = "This is alternate text")
   }, deleteFile = FALSE)
   
-  
   ## Volumes for testing
   volumes <- c("FTP" = "/ftp",
                Home = fs::path_home())
@@ -78,22 +77,34 @@ shinyServer(function(input, output, session) {
     return(paste(input$file_dir[[1]],sep=""))
   })
   
-  
-  #### Clustering file
-  ## Feather clustering file
-  # shinyFileChoose(input, "feather_file", 
-  #                 roots = volumes,
-  #                 defaultRoot = default_home, 
-  #                 defaultPath = default_path,
-  #                 session = session)
-  
-  
+
+
   ## path to the uploaded feather file
   dimred_path <- reactive({
       req(file_dir_path())
       dimred_file <- paste(file_dir_path(),"/","shiny_clustering_file.feather",sep="")
 
     return(dimred_file)
+  })
+  
+  ## Quickly check whether the user has used tSNE or UMAP for clustering
+  dimred_method <- reactive({
+    req(dimred_path())
+    
+    feather_file <- feather(dimred_path())
+    first_line <- feather_file[1,]
+    
+    if("tSNE_1" %in% colnames(first_line)){
+      method <- "tSNE"
+    }else if("UMAP_1" %in% colnames(first_line)){
+      method <- "UMAP"
+    }
+    return(method)
+  })
+  
+  # Print method the user was using
+  output$dimred_met <- renderPrint({
+    dimred_method()
   })
   
   ## path to the uploaded feather file
@@ -106,15 +117,21 @@ shinyServer(function(input, output, session) {
   dimred <- reactive({
     req(dimred_path())
     req(input$annotations_to_plot)
+    req(dimred_method())
     
     ## Need to add support for UMAP and split binding of a  nnotations to dimred for only reading feather standard file
     ## once when annotations change.
     ## Idea for UMAP: quickly read file that contains parameters?! 
     
     ## Read in clustering data
-    dimred <- feather::read_feather(dimred_path(),
-                                    columns = c("tSNE_1","tSNE_2","cell_id")
-                                    )
+    if(dimred_method() == "tSNE"){
+      dimred <- feather::read_feather(dimred_path(),
+                                      columns = c("tSNE_1","tSNE_2","cell_id"))
+    }else if(dimred_method() == "UMAP"){
+      dimred <- feather::read_feather(dimred_path(),
+                                      columns = c("UMAP_1","UMAP_2","cell_id"))
+    }
+
 
     selected_annotation <- all_annotations()[,input$annotations_to_plot]
     dimred <- cbind(dimred,selected_annotation)
@@ -218,9 +235,25 @@ shinyServer(function(input, output, session) {
     req(input$annotations_to_plot)
     req(color_palette())
     
+    f <- list(
+      size = 18,
+      color = "black"
+    )
+    
+    x <- list(
+      title = paste(dimred_method()," 1",sep=""),
+      titlefont = f
+    )
+    y <- list(
+      title = paste(dimred_method()," 2",sep=""),
+      titlefont = f
+    )
+    
     dimred_plot <- plot_ly(dimred(),
-                         x = ~tSNE_1,
-                         y = ~tSNE_2,
+                         # x = ~tSNE_1,
+                         # y = ~tSNE_2,
+                         x = ~get(paste(dimred_method(),"_1",sep="")),
+                         y = ~get(paste(dimred_method(),"_2",sep="")),
                          alpha  = 0.75,
                          type = "scattergl",
                          mode = "markers",
@@ -228,7 +261,8 @@ shinyServer(function(input, output, session) {
                          text = ~get(input$annotations_to_plot),
                          marker = list(size = input$point_size),
                          color = ~get(input$annotations_to_plot),
-                         colors = color_palette()) 
+                         colors = color_palette()) %>%
+      layout(xaxis = x, yaxis = y)
     
     return(dimred_plot)
   })
@@ -238,10 +272,26 @@ shinyServer(function(input, output, session) {
   output$dimred_gene_plot_plotly <- renderPlotly({
     
     req(dimred_exp())
+    
+    f <- list(
+      size = 18,
+      color = "black"
+    )
+    
+    x <- list(
+      title = paste(dimred_method()," 1",sep=""),
+      titlefont = f
+    )
+    y <- list(
+      title = paste(dimred_method()," 2",sep=""),
+      titlefont = f
+    )
 
     dimred_gene_plot <- plot_ly(subset(dimred_exp(),get(user_gene()) > 0),
-                         x = ~tSNE_1,
-                         y = ~tSNE_2,
+                         # x = ~tSNE_1,
+                         # y = ~tSNE_2,
+                         x = ~get(paste(dimred_method(),"_1",sep="")),
+                         y = ~get(paste(dimred_method(),"_2",sep="")),
                          alpha  = 1,
                          type = "scattergl",
                          mode = "markers",
@@ -252,15 +302,18 @@ shinyServer(function(input, output, session) {
                          colors = viridis_pal(option = input$dimred_color_palette)(6)) %>%
       add_trace(p,
                 data = subset(dimred_exp(),get(user_gene()) == 0),
-                x = ~tSNE_1,
-                y = ~tSNE_2,
+                # x = ~tSNE_1,
+                # y = ~tSNE_2,
+                x = ~get(paste(dimred_method(),"_1",sep="")),
+                y = ~get(paste(dimred_method(),"_2",sep="")),
                 type = 'scatter', 
                 mode = 'markers', 
                 marker = list(size = input$point_size,
                               color = 'grey'),
                 hoverinfo = 'none',
                 name = 'Not expressed') %>%
-      layout(title=user_gene()) %>%
+      layout(title=user_gene(),
+             xaxis = x, yaxis = y) %>%
       colorbar(title = "Normalized expression")
     
     
@@ -457,7 +510,9 @@ shinyServer(function(input, output, session) {
     req(dimred())
     req(input$rename_cluster_highlight)
     
-    dimred_plot <- ggplot(dimred(),aes(tSNE_1,tSNE_2)) +
+    dimred_plot <- ggplot(dimred(),
+                          aes(get(paste(dimred_method(),"_1",sep="")),
+                              get(paste(dimred_method(),"_2",sep="")))) +
       geom_point(data = subset(dimred(),get(input$annotations_to_plot) != input$rename_cluster_highlight),
                  colour = "darkgrey",
                  size = 3,
@@ -466,8 +521,8 @@ shinyServer(function(input, output, session) {
                  colour = "red",
                  size = 3,
                  alpha  = 1) +
-      labs(x = "Dimension 1",
-           y = "Dimension 2",
+      labs(x = paste(dimred_method()," 1",sep=""),
+           y = paste(dimred_method()," 2",sep=""),
            title = paste("Cluster:",input$rename_cluster_highlight))
     
     return(dimred_plot)
@@ -522,7 +577,8 @@ shinyServer(function(input, output, session) {
     req(input$gene_thresh_selected)
   
     
-    dimred_plot <- ggplot(dimred_exp_rename(),aes(tSNE_1,tSNE_2)) +
+    dimred_plot <- ggplot(dimred_exp_rename(),aes(get(paste(dimred_method(),"_1",sep="")),
+                                                  get(paste(dimred_method(),"_2",sep="")))) +
       geom_point(data = subset(dimred_exp_rename(),expression < as.numeric(input$gene_thresh_selected)),
                  colour = "darkgrey",
                  size = 3,
@@ -531,8 +587,8 @@ shinyServer(function(input, output, session) {
                  colour = "red",
                  size = 3,
                  alpha  = 0.75) +
-      labs(x = "Dimension 1",
-           y = "Dimension 2",
+      labs(x = paste(dimred_method()," 1",sep=""),
+           y = paste(dimred_method()," 2",sep=""),
            title = paste("Gene:",input$gene_renaming),sep=" ")
     
     return(dimred_plot)
@@ -768,11 +824,27 @@ shinyServer(function(input, output, session) {
     
     req(dimred())
     req(input$annotations_to_plot)
+    
+    f <- list(
+      size = 18,
+      color = "black"
+    )
+    
+    x <- list(
+      title = paste(dimred_method()," 1",sep=""),
+      titlefont = f
+    )
+    y <- list(
+      title = paste(dimred_method()," 2",sep=""),
+      titlefont = f
+    )
   
     cell_ids <- dimred()$cell_id
     dimred_plot <- plot_ly(dimred(),
-                           x = ~tSNE_1,
-                           y = ~tSNE_2,
+                           # x = ~tSNE_1,
+                           # y = ~tSNE_2,
+                           x = ~get(paste(dimred_method(),"_1",sep="")),
+                           y = ~get(paste(dimred_method(),"_2",sep="")),
                            key = ~cell_ids,
                            alpha  = 0.75,
                            type = "scattergl",
@@ -782,7 +854,8 @@ shinyServer(function(input, output, session) {
                            marker = list(size = input$point_size),
                            color = ~get(input$annotations_to_plot),
                            colors = color_palette()) %>%
-      layout(dragmode = "select")
+      layout(dragmode = "select",
+             xaxis = x, yaxis = y)
     
     dimred_plot
     
