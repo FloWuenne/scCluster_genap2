@@ -389,7 +389,7 @@ shinyServer(function(input, output, session) {
   #     formatStyle(columns = c(3:9), 'text-align' = 'centers')
   # })
   
-  
+  ## Gene to plot in Modify & add annotations view 
   gene_names_selection <- eventReactive(input$rename_method == "gene_expression",{
     req(gene_names_df())
     
@@ -401,8 +401,30 @@ shinyServer(function(input, output, session) {
                          selected = NULL)
   })
   
+  ## Gene to plot in Dimensional reduction view
+  output$user_gene_plot_list <- renderUI({
+    req(dimred_gene_sel())
+    selectizeInput(
+      inputId = 'user_gene_clustering', 
+      label = 'Select the genes to plot', 
+      choices = NULL , multiple = FALSE)
+  })
+  
+  dimred_gene_sel <- reactive({
+
+    req(gene_names_df())
+    gene_names_available <- unique(gene_names_df()$genes)
+    
+    updateSelectizeInput(session, 'user_gene_clustering', 
+                         choices = c("Type your gene"='',gene_names_available), 
+                         server = TRUE,
+                         selected = NULL)
+  })
+  
 
 
+  ## Dimensional reduction
+  
   
   ## Renaming 
   output$rename_list <- renderUI({

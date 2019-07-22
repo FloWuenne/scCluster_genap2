@@ -115,7 +115,8 @@ shinyUI(
                                   min = 2, max = 10, value = 6, step = 2, round = TRUE) ),
                
                column(width= 4,
-                      textInput(inputId = "user_gene_clustering", label = "Enter Genesymbol"),
+                      #textInput(inputId = "user_gene_clustering", label = "Enter Genesymbol"),
+                      uiOutput("user_gene_plot_list"),
                       actionButton("plot_gene_button", "Plot gene!") )
                ),
                  
