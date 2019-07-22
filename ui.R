@@ -79,9 +79,7 @@ shinyUI(
                column(12, align="center",
                       h1("Upload dataset"),
                       
-                      shinyDirButton("file_dir", "Choose a dataset!", "Please select a dataset!"),
-                      
-                      verbatimTextOutput("dimred_met")
+                      shinyDirButton("file_dir", "Choose a dataset!", "Please select a dataset!")
                     
                       )
                ), 
