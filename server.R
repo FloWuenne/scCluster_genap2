@@ -333,7 +333,7 @@ shinyServer(function(input, output, session) {
           top_n(500,wt = "auc") 
         
         presto_results$group <- as.factor(presto_results$group)
-        
+
         presto_results <- presto_results %>%
           group_by(group) %>%
           arrange(desc(logFC))
@@ -364,12 +364,7 @@ shinyServer(function(input, output, session) {
               caption = 'Table 1: Presto Marker genes for selected annotation',
               filter = 'top',
               selection = 'single',
-              rownames= FALSE,
-              extensions = 'Scroller', options = list(
-                deferRender = TRUE,
-                scrollY = 500,
-                scroller = TRUE
-              )) %>%
+              rownames= FALSE) %>%
       formatRound(digits = c(2), columns = c(3:11)) %>%
       formatStyle(columns = c(1:11), 'text-align' = 'centers')
   })
