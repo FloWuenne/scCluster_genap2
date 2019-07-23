@@ -47,7 +47,7 @@ shinyUI(
                                             p("Current dataset:")
                                             ),
                            conditionalPanel(condition = "output.user_cluster_labels",
-                                            h4(textOutput("test_file_dir"))
+                                            h4(textOutput("current_dataset"))
                            )
                            ) ,
                      column(4,align="center",

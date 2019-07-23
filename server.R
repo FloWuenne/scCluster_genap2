@@ -73,6 +73,9 @@ shinyServer(function(input, output, session) {
     return(this_path)
   })
   
+  output$current_dataset <- renderText({
+    return(paste(tail(input$file_dir[[1]],n = 1),sep=""))
+  })
 
   ## path to the uploaded feather file
   dimred_path <- reactive({
