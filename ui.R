@@ -345,7 +345,33 @@ shinyUI(
              # conditionalPanel(condition = "output.marker_genes_table_out",
              #                  dataTableOutput("table_marker_genes")
              
+             ),
+    
+    ## Table with marker genes
+    tabPanel("Compare annotations",icon = icon("compress"),
+             
+             fluidRow(
+               column(4,
+                      uiOutput("comp_anno_list1")
+                      ),
+               
+               column(4,
+                      uiOutput("comp_anno_list2")
+               ),
+               
+               column(4,
+                      br(),
+                      actionButton("compare_annos","Compare annotations!"))
+             ),
+             
+             fluidRow(
+               column(12,
+                      plotlyOutput("sankey_diagram", height = "auto"))
              )
+             
+             
+             
+    )
     
   ) # end of TabsetPanel
   ) # end of fluidPage

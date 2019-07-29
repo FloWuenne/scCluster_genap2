@@ -879,19 +879,91 @@ shinyServer(function(input, output, session) {
     }
   )
   
+  ## List 1 of annotations
+  output$comp_anno_list1 <- renderUI({
+    req(all_annotations())
+    
+    selectInput(
+      inputId = 'comp_anno_1', 
+      label = 'Select the genes to plot', 
+      choices = colnames(all_annotations()[,-1]), multiple = FALSE)
+  })
+  
+  ## List 2 of annotations
+  output$comp_anno_list2 <- renderUI({
+    req(all_annotations())
+    req(input$comp_anno_1)
+    
+    selectInput(
+      inputId = 'comp_anno_2', 
+      label = 'Select the genes to plot', 
+      choices = colnames(all_annotations()[,-1]), multiple = FALSE)
+  })
+  
+  sankey_comp <- eventReactive(input$compare_annos, {
+    req(all_annotations())
+    req(input$comp_anno_1)
+    req(input$comp_anno_2)
+
+    annos_to_compare <- all_annotations()[,c("cell_id",input$comp_anno_1,input$comp_anno_2)]
+
+    annos_to_compare <- all_annotations()[,c(input$comp_anno_1,input$comp_anno_2)]
+    
+    annos_to_compare_stats <- annos_to_compare %>% 
+      group_by(get(input$comp_anno_1),get(input$comp_anno_2)) %>%
+      tally() %>%
+      ungroup()
+    
+    colnames(annos_to_compare_stats) <- c("anno1","anno2","n")
+    
+    annos_to_compare_stats <- annos_to_compare_stats %>%
+      mutate("anno1" = paste(anno1,input$comp_anno_1,sep="_")) %>%
+      mutate("anno2" = paste(anno2,input$comp_anno_2,sep="_"))
+    
+    joined_annos <- c(annos_to_compare_stats$anno1,annos_to_compare_stats$anno2)
+    joined_annos <- unique(joined_annos)
+    
+    annos_to_compare_stats$IDsource=match(annos_to_compare_stats$anno1, joined_annos)-1 
+    annos_to_compare_stats$IDtarget=match(annos_to_compare_stats$anno2, joined_annos)-1
+
+    return(annos_to_compare_stats)
+    })
   
 
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
+  ## Sankey diagram to compare two annotations
+  output$sankey_diagram <- renderPlotly({
+    req(sankey_comp())
+    
+    joined_annos <- c(sankey_comp()$anno1,sankey_comp()$anno2)
+    joined_annos <- unique(joined_annos)
+    
+    p <- plot_ly(
+      type = "sankey",
+      orientation = "h",
+      
+      node = list(
+        label = joined_annos,
+        pad = 15,
+        thickness = 20,
+        line = list(
+          color = "black",
+          width = 0.5
+        )
+      ),
+      
+      link = list(
+        source = sankey_comp()$IDsource,
+        target = sankey_comp()$IDtarget,
+        value =  sankey_comp()$n
+      )
+    )
+
+
+
+    }
+  )
+
   
   
   
